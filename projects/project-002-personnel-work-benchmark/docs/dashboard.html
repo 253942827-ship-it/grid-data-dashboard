@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>沙太人员数据对标看板 - 2026-05</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans SC',sans-serif;background:#f0f2f5;color:#1a1a2e;padding:20px}
+.page{max-width:1400px;margin:0 auto}
+.topbar{background:linear-gradient(135deg,#0d1b4a,#1a237e,#283593);color:#fff;padding:14px 24px;border-radius:10px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.topbar h1{font-size:18px;letter-spacing:1px;font-weight:700}
+.topbar .meta{font-size:12px;opacity:.7;display:flex;gap:10px}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.summary-card{background:#fff;border-radius:10px;padding:12px 16px;box-shadow:0 1px 6px rgba(0,0,0,.04);text-align:center}
+.summary-card .num{font-size:24px;font-weight:700;font-family:'Menlo',monospace}
+.summary-card .label{font-size:11px;color:#888;margin-top:2px}
+
+.role-group{margin-bottom:20px}
+.role-header{background:#e8eaf6;border-radius:8px;padding:8px 14px;margin-bottom:8px;font-size:14px;font-weight:700;color:#1a237e;display:flex;justify-content:space-between;align-items:center}
+.role-header .rc{font-size:12px;font-weight:400;color:#666}
+
+.panel{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);overflow:hidden;margin-bottom:14px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:1500px}
+th{background:#e8eaf6;color:#1a237e;font-weight:600;padding:6px 6px;text-align:center;font-size:11px;position:sticky;top:0;z-index:1;border-right:1px solid #ddd;border-bottom:2px solid #9fa8da;white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:4px 4px;border-bottom:1px solid #f0f0f0;text-align:center;white-space:nowrap}
+tr:hover td{background:#f8f9ff}
+.tr{text-align:right;font-variant-numeric:tabular-nums;font-family:'Menlo',monospace;font-size:11px}
+.tl{text-align:left}
+.p{color:#2e7d32}
+.n{color:#c62828}
+.na{color:#ccc}
+.hl-name{font-weight:500;color:#1a237e}
+.hl-role{font-size:10px;color:#888;display:block}
+.group-divider td{background:#f5f7ff!important;font-weight:600;font-size:11px;color:#1a237e;padding:6px 4px}
+.section-title{font-size:13px;font-weight:700;color:#1a237e;padding:10px 14px 4px;display:flex;align-items:center;gap:6px}
+.cat-header{background:#283593!important;color:#fff!important;font-size:11px;letter-spacing:1px}
+.cat-sub{background:#e8eaf6!important;font-size:10px;color:#1a237e;font-weight:600;border-bottom:2px solid #9fa8da!important}
+.rate-bg{display:inline-block;padding:2px 6px;border-radius:4px;font-weight:600}
+.rate-high{background:#e8f5e9;color:#2e7d32}
+.rate-mid{background:#fff3e0;color:#e65100}
+.rate-low{background:#fce4ec;color:#c62828}
+/* Freeze first 2 columns on horizontal scroll */
+td:first-child {position: sticky; left: 0; z-index: 3; background: #fff; border-right: 1px solid #e0e0e0!important;}
+th:first-child {position: sticky; left: 0; z-index: 3; border-right: 1px solid #e0e0e0!important;}
+td:nth-child(2) {position: sticky; left: 82px; z-index: 2; background: #fff; border-right: 1px solid #e0e0e0!important;}
+th:nth-child(2) {position: sticky; left: 82px; z-index: 2; border-right: 1px solid #e0e0e0!important;}
+thead th:first-child, thead th:nth-child(2) { z-index: 3; }
+.cat-header th:first-child, .cat-header th:nth-child(2) {background: #283593 !important;}
+.footer{text-align:center;font-size:11px;color:#bbb;margin:16px 0 4px}
+
+.main-panel{display:none}.main-panel.active{display:block}
+.main-tab-btn{padding:8px 20px;border:none;background:transparent;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:#666;font-family:inherit;white-space:nowrap}
+.main-tab-btn:hover{background:rgba(255,255,255,.7);color:#1a237e;transform:translateY(-1px);transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.main-tab-btn.active{background:#fff;color:#1a237e;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* UI 优化 */
+tr:nth-child(even) td:nth-child(n+3){background:#fafbff}
+.summary-card:hover{box-shadow:0 3px 14px rgba(0,0,0,.08);transform:translateY(-1px);transition:all .2s}
+.panel:hover{box-shadow:0 2px 10px rgba(0,0,0,.06);transition:all .2s}
+</style>
+<script>
+function switchMainTab(i){
+  document.querySelectorAll(".main-panel").forEach(function(p){p.classList.remove("active")});
+  document.querySelectorAll(".main-tab-btn").forEach(function(b){b.classList.remove("active")});
+  var panels = document.querySelectorAll(".main-panel");
+  if(panels[i]) panels[i].classList.add("active");
+  var btns = document.querySelectorAll(".main-tab-btn");
+  if(btns[i]) btns[i].classList.add("active");
+}
+</script>
+</head>
+<body>
+<div class="page">
+<div class="topbar">
+  <h1>📊 沙太人员数据对标看板</h1>
+  <div class="meta"><span>📅 2026-05</span><span>👤 30 人</span></div>
+  <div class="date-status" style="width:100%;font-size:10px;color:rgba(255,255,255,.7);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;">
+    📡 新装~06/21 存量~06/20 杠保~06/20 质态06/20 关键一单~06/22
+  </div>
+</div>
+
+<div class="main-tabs" style="display:flex;gap:2px;background:#e8eaf6;border-radius:8px;padding:3px;margin-bottom:14px;"><button class="main-tab-btn active" onclick="switchMainTab(0)">📊 数据对标</button><button class="main-tab-btn" onclick="switchMainTab(1)">⚙️ 人员管理</button></div><div class="main-panel active" id="panel-b"><div class="summary-row">
+  <div class="summary-card"><div class="num" style="color:#1565c0;">30</div><div class="label">总人数</div></div>
+  <div class="summary-card"><div class="num" style="color:#2e7d32;">13</div><div class="label">装维经理</div></div>
+  <div class="summary-card"><div class="num" style="color:#e65100;">12</div><div class="label">片区经理</div></div>
+  <div class="summary-card"><div class="num" style="color:#7b1fa2;">5</div><div class="label">营业员</div></div>
+</div>
+<div class="panel"><div class="role-header">装维经理<span class="rc">13人</span></div><div class="tbl-wrap"><table><thead>
+<tr class="cat-header">
+  <th rowspan="2" style="min-width:80px;">姓名</th>
+  <th rowspan="2" style="min-width:50px;">岗位</th>
+  <th colspan="5">① 价值积分</th>
+  <th colspan="7">② 增存高套</th>
+  <th colspan="3">③ 杠保</th>
+  <th colspan="3">④ 关键一单</th>
+  <th colspan="5">⑥ 质态相关</th>
+
+  
+</tr>
+<tr class="cat-sub">
+  <th>新装积分</th><th>存量积分</th><th>合计</th><th>上月</th><th>环比</th>
+  <th>新装折算</th><th>存量折算</th><th>总计</th><th>目标</th><th>完成率</th><th>达量目标</th><th>缺口</th>
+  <th>杠保成功量</th><th>总业务量</th><th>成功率</th>
+  <th>派单</th><th>转化</th><th>转化率</th><th>T0未满卡</th><th>T0无效</th><th>T0无托收</th><th>T1无效</th><th>T1无托收</th>
+
+
+</tr></thead><tbody><tr><td class="tl hl-name">何贵文</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">  337.00</td><td class="tr p">  337.00</td><td class="tr p">  866.00</td><td class="tr n">   -0.4%</td><td class="tr ">    0.00</td><td class="tr p">    4.75</td><td class="tr p">    4.75</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-mid">59.4%</span></td><td class="tr">6.0</td><td class="tr p">    1.25</td><td class="tr">1</td><td class="tr">10</td><td class="tr"><span class="rate-bg rate-low">10.0%</span></td><td class="tr">52</td><td class="tr">2</td><td class="tr">3.9%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">3</td><td class="tr">0</td></tr><tr><td class="tl hl-name">冯海枫</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">   40.00</td><td class="tr p">   40.00</td><td class="tr p">  502.00</td><td class="tr n">  -79.6%</td><td class="tr ">    0.00</td><td class="tr p">    0.50</td><td class="tr p">    0.50</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-low">6.2%</span></td><td class="tr">6.0</td><td class="tr p">    5.50</td><td class="tr">1</td><td class="tr">1</td><td class="tr"><span class="rate-bg rate-high">100.0%</span></td><td class="tr">46</td><td class="tr">2</td><td class="tr">4.3%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">吴镒晖</td><td class="hl-role">装维经理</td><td class="tr p">  129.00</td><td class="tr p">  808.00</td><td class="tr p">  937.00</td><td class="tr p">  804.00</td><td class="tr p">  198.2%</td><td class="tr p">    1.00</td><td class="tr p">   11.25</td><td class="tr p">   12.25</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-high">153.1%</span></td><td class="tr">6.0</td><td class="tr n">   -6.25</td><td class="tr">1</td><td class="tr">14</td><td class="tr"><span class="rate-bg rate-low">7.1%</span></td><td class="tr">64</td><td class="tr">5</td><td class="tr">7.8%</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">2</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr><tr><td class="tl hl-name">夏健</td><td class="hl-role">装维经理</td><td class="tr p">  396.00</td><td class="tr p">  270.00</td><td class="tr p">  666.00</td><td class="tr p"> 1366.00</td><td class="tr p">   24.8%</td><td class="tr p">    2.80</td><td class="tr p">    4.25</td><td class="tr p">    7.05</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-high">88.1%</span></td><td class="tr">6.0</td><td class="tr n">   -1.05</td><td class="tr">0</td><td class="tr">9</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr">47</td><td class="tr">2</td><td class="tr">4.3%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">2</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr><tr><td class="tl hl-name">廖罗养</td><td class="hl-role">装维经理</td><td class="tr p">  288.00</td><td class="tr p">   30.00</td><td class="tr p">  318.00</td><td class="tr p">  667.00</td><td class="tr p">   22.0%</td><td class="tr p">    1.80</td><td class="tr p">    0.50</td><td class="tr p">    2.30</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-low">28.7%</span></td><td class="tr">6.0</td><td class="tr p">    3.70</td><td class="tr">1</td><td class="tr">3</td><td class="tr"><span class="rate-bg rate-mid">33.3%</span></td><td class="tr">42</td><td class="tr">1</td><td class="tr">2.4%</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">4</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">2</td></tr><tr><td class="tl hl-name">张禄</td><td class="hl-role">装维经理</td><td class="tr p"> 1116.00</td><td class="tr p">  246.00</td><td class="tr p"> 1362.00</td><td class="tr p">  378.00</td><td class="tr p">  822.0%</td><td class="tr p">    7.60</td><td class="tr p">    3.00</td><td class="tr p">   10.60</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-high">132.5%</span></td><td class="tr">6.0</td><td class="tr n">   -4.60</td><td class="tr">2</td><td class="tr">9</td><td class="tr"><span class="rate-bg rate-mid">22.2%</span></td><td class="tr">42</td><td class="tr">6</td><td class="tr">14.3%</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">3</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">程海鹏</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr na">-</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr">18.0</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr">6.0</td><td class="tr p">    6.00</td><td class="tr">0</td><td class="tr">0</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">罗迪苗</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">   55.00</td><td class="tr p">   55.00</td><td class="tr p">  579.00</td><td class="tr n">  -75.7%</td><td class="tr ">    0.00</td><td class="tr p">    0.75</td><td class="tr p">    0.75</td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">6.0</td><td class="tr p">    5.25</td><td class="tr">0</td><td class="tr">2</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr">20</td><td class="tr">2</td><td class="tr">10.0%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">胡亮</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">  120.00</td><td class="tr p">  120.00</td><td class="tr p">  609.00</td><td class="tr n">  -49.6%</td><td class="tr ">    0.00</td><td class="tr p">    1.75</td><td class="tr p">    1.75</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-low">21.9%</span></td><td class="tr">6.0</td><td class="tr p">    4.25</td><td class="tr">1</td><td class="tr">4</td><td class="tr"><span class="rate-bg rate-mid">25.0%</span></td><td class="tr">40</td><td class="tr">6</td><td class="tr">15.0%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">邓锦安</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">  890.00</td><td class="tr p">  890.00</td><td class="tr p"> 2120.00</td><td class="tr p">    7.4%</td><td class="tr ">    0.00</td><td class="tr p">   11.50</td><td class="tr p">   11.50</td><td class="tr">9.0</td><td class="tr"><span class="rate-bg rate-high">127.8%</span></td><td class="tr">6.0</td><td class="tr n">   -5.50</td><td class="tr">2</td><td class="tr">26</td><td class="tr"><span class="rate-bg rate-low">7.7%</span></td><td class="tr">59</td><td class="tr">47</td><td class="tr">79.7%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">陈志钜</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">  329.00</td><td class="tr p">  329.00</td><td class="tr p">  604.00</td><td class="tr p">   39.4%</td><td class="tr ">    0.00</td><td class="tr p">    4.50</td><td class="tr p">    4.50</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-mid">56.2%</span></td><td class="tr">6.0</td><td class="tr p">    1.50</td><td class="tr">1</td><td class="tr">9</td><td class="tr"><span class="rate-bg rate-low">11.1%</span></td><td class="tr">24</td><td class="tr">2</td><td class="tr">8.3%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td></tr><tr><td class="tl hl-name">马从柏</td><td class="hl-role">装维经理</td><td class="tr ">    0.00</td><td class="tr p">  468.00</td><td class="tr p">  468.00</td><td class="tr p">  493.00</td><td class="tr p">  142.9%</td><td class="tr ">    0.00</td><td class="tr p">    6.75</td><td class="tr p">    6.75</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-high">84.4%</span></td><td class="tr">6.0</td><td class="tr n">   -0.75</td><td class="tr">1</td><td class="tr">14</td><td class="tr"><span class="rate-bg rate-low">7.1%</span></td><td class="tr">48</td><td class="tr">3</td><td class="tr">6.2%</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">马森林</td><td class="hl-role">装维经理</td><td class="tr p">  517.00</td><td class="tr p">  299.00</td><td class="tr p">  816.00</td><td class="tr p">  536.00</td><td class="tr p">  289.6%</td><td class="tr p">    3.80</td><td class="tr p">    4.00</td><td class="tr p">    7.80</td><td class="tr">8.0</td><td class="tr"><span class="rate-bg rate-high">97.5%</span></td><td class="tr">6.0</td><td class="tr n">   -1.80</td><td class="tr">1</td><td class="tr">11</td><td class="tr"><span class="rate-bg rate-low">9.1%</span></td><td class="tr">40</td><td class="tr">5</td><td class="tr">12.5%</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr></tbody></table></div></div><div class="panel" style="padding:10px 14px;font-size:11px;color:#444;"><div style="font-weight:700;color:#1a237e;border-bottom:2px solid #e8eaf6;padding-bottom:4px;margin-bottom:6px;">📊 装维经理 各指标领先落后分析</div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">①</span>价值积分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>张禄</b> 1362分 &nbsp; <b>吴镒晖</b> 937分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>程海鹏</b> 0分 &nbsp; <b>冯海枫</b> 40分</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">②</span>增存高套</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>吴镒晖</b> 12.25 &nbsp; <b>邓锦安</b> 11.5</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>程海鹏</b> 0 &nbsp; <b>冯海枫</b> 0.5</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">③</span>杠保成功率</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>冯海枫</b> 100% &nbsp; <b>廖罗养</b> 33.3%</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>罗迪苗</b> 0% &nbsp; <b>夏健</b> 0%</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">④</span>关键一单转化率<span style="font-size:10px;color:#999;font-weight:400;margin-left:4px;">（仅装维经理）</span></div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>邓锦安</b> 79.7%（派单59、转化47） &nbsp; <b>胡亮</b> 15%（派单40、转化6）</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>廖罗养</b> 2.4%（派单42、转化1） &nbsp; <b>何贵文</b> 3.9%（派单52、转化2）</div></div><div style="margin-bottom:2px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">⑤</span>质态关注（需要提醒的人员）</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>廖罗养</b> 共7项异常：T0未满卡1、T1无效4、T1无托收2</span></div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>吴镒晖</b> 共4项异常：T0未满卡1、T1无效2、T1无托收1</span></div></div></div><div class="panel"><div class="role-header">片区经理<span class="rc">12人</span></div><div class="tbl-wrap"><table><thead>
+<tr class="cat-header">
+  <th rowspan="2" style="min-width:80px;">姓名</th>
+  <th rowspan="2" style="min-width:50px;">岗位</th>
+  <th colspan="5">① 价值积分</th>
+  <th colspan="7">② 增存高套</th>
+  <th colspan="3">③ 杠保</th>
+  <th colspan="3">④ 关键一单</th>
+  <th colspan="5">⑥ 质态相关</th>
+
+  
+</tr>
+<tr class="cat-sub">
+  <th>新装积分</th><th>存量积分</th><th>合计</th><th>上月</th><th>环比</th>
+  <th>新装折算</th><th>存量折算</th><th>总计</th><th>目标</th><th>完成率</th><th>达量目标</th><th>缺口</th>
+  <th>杠保成功量</th><th>总业务量</th><th>成功率</th>
+  <th>派单</th><th>转化</th><th>转化率</th><th>T0未满卡</th><th>T0无效</th><th>T0无托收</th><th>T1无效</th><th>T1无托收</th>
+
+
+</tr></thead><tbody><tr><td class="tl hl-name">丘培潜</td><td class="hl-role">片区经理</td><td class="tr p">  201.00</td><td class="tr ">    0.00</td><td class="tr p">  201.00</td><td class="tr p"> 2119.00</td><td class="tr n">  -75.7%</td><td class="tr p">    1.30</td><td class="tr ">    0.00</td><td class="tr p">    1.30</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-low">10.8%</span></td><td class="tr">19.0</td><td class="tr p">   17.70</td><td class="tr">1</td><td class="tr">2</td><td class="tr"><span class="rate-bg rate-high">50.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">3</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">4</td></tr><tr><td class="tl hl-name">刘思祺</td><td class="hl-role">片区经理</td><td class="tr ">    0.00</td><td class="tr p">  873.00</td><td class="tr p">  873.00</td><td class="tr p"> 1787.00</td><td class="tr p">   25.0%</td><td class="tr ">    0.00</td><td class="tr p">   11.00</td><td class="tr p">   11.00</td><td class="tr">18.0</td><td class="tr"><span class="rate-bg rate-mid">61.1%</span></td><td class="tr">10.0</td><td class="tr n">   -1.00</td><td class="tr">0</td><td class="tr">21</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">卫子杰</td><td class="hl-role">片区经理</td><td class="tr p"> 1458.00</td><td class="tr p">  160.00</td><td class="tr p"> 1618.00</td><td class="tr p"> 1582.00</td><td class="tr p">  161.7%</td><td class="tr p">    9.70</td><td class="tr p">    3.00</td><td class="tr p">   12.70</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-high">105.8%</span></td><td class="tr">19.0</td><td class="tr p">    6.30</td><td class="tr">3</td><td class="tr">17</td><td class="tr"><span class="rate-bg rate-low">17.6%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">6</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">5</td></tr><tr><td class="tl hl-name">张文聪</td><td class="hl-role">片区经理</td><td class="tr p">  158.00</td><td class="tr p">   90.00</td><td class="tr p">  248.00</td><td class="tr p">  378.00</td><td class="tr p">   67.9%</td><td class="tr p">    1.00</td><td class="tr p">    1.25</td><td class="tr p">    2.25</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-low">18.8%</span></td><td class="tr">19.0</td><td class="tr p">   16.75</td><td class="tr">1</td><td class="tr">5</td><td class="tr"><span class="rate-bg rate-mid">20.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">3</td><td class="tr">0</td></tr><tr><td class="tl hl-name">梁盛威</td><td class="hl-role">片区经理</td><td class="tr p">   79.00</td><td class="tr ">    0.00</td><td class="tr p">   79.00</td><td class="tr p">  258.00</td><td class="tr n">  -21.6%</td><td class="tr p">    0.50</td><td class="tr ">    0.00</td><td class="tr p">    0.50</td><td class="tr">13.0</td><td class="tr"><span class="rate-bg rate-low">3.9%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr><tr><td class="tl hl-name">潘晨光</td><td class="hl-role">片区经理</td><td class="tr p">  436.00</td><td class="tr p">   32.00</td><td class="tr p">  468.00</td><td class="tr p">  892.00</td><td class="tr p">   34.2%</td><td class="tr p">    3.00</td><td class="tr p">    0.50</td><td class="tr p">    3.50</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-low">29.2%</span></td><td class="tr">19.0</td><td class="tr p">   15.50</td><td class="tr">2</td><td class="tr">5</td><td class="tr"><span class="rate-bg rate-mid">40.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">禤铠畅</td><td class="hl-role">片区经理</td><td class="tr p">  169.00</td><td class="tr p">  348.00</td><td class="tr p">  517.00</td><td class="tr p">  737.00</td><td class="tr p">   79.5%</td><td class="tr p">    1.00</td><td class="tr p">    5.50</td><td class="tr p">    6.50</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-mid">54.2%</span></td><td class="tr">19.0</td><td class="tr p">   12.50</td><td class="tr">3</td><td class="tr">7</td><td class="tr"><span class="rate-bg rate-mid">42.9%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr">0</td></tr><tr><td class="tl hl-name">覃庆朋</td><td class="hl-role">片区经理</td><td class="tr p">  276.00</td><td class="tr p">   90.00</td><td class="tr p">  366.00</td><td class="tr p">  399.00</td><td class="tr p">  134.7%</td><td class="tr p">    1.60</td><td class="tr p">    1.00</td><td class="tr p">    2.60</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-low">21.7%</span></td><td class="tr">19.0</td><td class="tr p">   16.40</td><td class="tr">2</td><td class="tr">6</td><td class="tr"><span class="rate-bg rate-mid">33.3%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">2</td><td class="tr">0</td></tr><tr><td class="tl hl-name">郑创佳</td><td class="hl-role">片区经理</td><td class="tr p">   59.00</td><td class="tr ">    0.00</td><td class="tr p">   59.00</td><td class="tr p">  654.00</td><td class="tr n">  -76.9%</td><td class="tr p">    0.30</td><td class="tr ">    0.00</td><td class="tr p">    0.30</td><td class="tr">12.0</td><td class="tr"><span class="rate-bg rate-low">2.5%</span></td><td class="tr">19.0</td><td class="tr p">   18.70</td><td class="tr">0</td><td class="tr">1</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr><tr><td class="tl hl-name">陈敏飞</td><td class="hl-role">片区经理</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr na">-</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr ">    0.00</td><td class="tr">6.0</td><td class="tr"><span class="rate-bg rate-low">0.0%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">陈梓城</td><td class="hl-role">片区经理</td><td class="tr p">  318.00</td><td class="tr ">    0.00</td><td class="tr p">  318.00</td><td class="tr p">  100.00</td><td class="tr p">  713.7%</td><td class="tr p">    2.30</td><td class="tr ">    0.00</td><td class="tr p">    2.30</td><td class="tr">9.0</td><td class="tr"><span class="rate-bg rate-low">25.6%</span></td><td class="tr">15.0</td><td class="tr p">   12.70</td><td class="tr">1</td><td class="tr">2</td><td class="tr"><span class="rate-bg rate-high">50.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">2</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">陈鸿</td><td class="hl-role">片区经理</td><td class="tr p">  229.00</td><td class="tr ">    0.00</td><td class="tr p">  229.00</td><td class="tr p">  420.00</td><td class="tr p">   39.5%</td><td class="tr p">    1.50</td><td class="tr ">    0.00</td><td class="tr p">    1.50</td><td class="tr">9.0</td><td class="tr"><span class="rate-bg rate-low">16.7%</span></td><td class="tr">15.0</td><td class="tr p">   13.50</td><td class="tr">1</td><td class="tr">1</td><td class="tr"><span class="rate-bg rate-high">100.0%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr></tbody></table></div></div><div class="panel" style="padding:10px 14px;font-size:11px;color:#444;"><div style="font-weight:700;color:#1a237e;border-bottom:2px solid #e8eaf6;padding-bottom:4px;margin-bottom:6px;">📊 片区经理 各指标领先落后分析</div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">①</span>价值积分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>卫子杰</b> 1618分 &nbsp; <b>刘思祺</b> 873分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>陈敏飞</b> 0分 &nbsp; <b>郑创佳</b> 59分</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">②</span>增存高套</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>卫子杰</b> 12.7 &nbsp; <b>刘思祺</b> 11</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>陈敏飞</b> 0 &nbsp; <b>郑创佳</b> 0.3</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">③</span>杠保成功率</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>陈鸿</b> 100% &nbsp; <b>丘培潜</b> 50%</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>郑创佳</b> 0% &nbsp; <b>刘思祺</b> 0%</div></div><div style="margin-bottom:2px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">⑤</span>质态关注（需要提醒的人员）</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>卫子杰</b> 共12项异常：T0未满卡1、T1无效6、T1无托收5</span></div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>丘培潜</b> 共7项异常：T1无效3、T1无托收4</span></div></div></div><div class="panel"><div class="role-header">营业员<span class="rc">5人</span></div><div class="tbl-wrap"><table><thead>
+<tr class="cat-header">
+  <th rowspan="2" style="min-width:80px;">姓名</th>
+  <th rowspan="2" style="min-width:50px;">岗位</th>
+  <th colspan="5">① 价值积分</th>
+  <th colspan="7">② 增存高套</th>
+  <th colspan="3">③ 杠保</th>
+  <th colspan="3">④ 关键一单</th>
+  <th colspan="5">⑥ 质态相关</th>
+
+  
+</tr>
+<tr class="cat-sub">
+  <th>新装积分</th><th>存量积分</th><th>合计</th><th>上月</th><th>环比</th>
+  <th>新装折算</th><th>存量折算</th><th>总计</th><th>目标</th><th>完成率</th><th>达量目标</th><th>缺口</th>
+  <th>杠保成功量</th><th>总业务量</th><th>成功率</th>
+  <th>派单</th><th>转化</th><th>转化率</th><th>T0未满卡</th><th>T0无效</th><th>T0无托收</th><th>T1无效</th><th>T1无托收</th>
+
+
+</tr></thead><tbody><tr><td class="tl hl-name">杨金燕</td><td class="hl-role">营业员</td><td class="tr ">    0.00</td><td class="tr p">  638.00</td><td class="tr p">  638.00</td><td class="tr p">  876.00</td><td class="tr p">   86.4%</td><td class="tr ">    0.00</td><td class="tr p">   10.00</td><td class="tr p">   10.00</td><td class="tr">21.0</td><td class="tr"><span class="rate-bg rate-low">47.6%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">2</td><td class="tr">7</td><td class="tr"><span class="rate-bg rate-mid">28.6%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">梁继梅</td><td class="hl-role">营业员</td><td class="tr p">  428.00</td><td class="tr p">  100.00</td><td class="tr p">  528.00</td><td class="tr p">  683.00</td><td class="tr p">   97.8%</td><td class="tr p">    3.30</td><td class="tr p">    1.50</td><td class="tr p">    4.80</td><td class="tr">21.0</td><td class="tr"><span class="rate-bg rate-low">22.9%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">1</td><td class="tr">3</td><td class="tr"><span class="rate-bg rate-mid">33.3%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">郭艺敏</td><td class="hl-role">营业员</td><td class="tr p">  199.00</td><td class="tr p">  404.00</td><td class="tr p">  603.00</td><td class="tr p"> 1920.00</td><td class="tr n">  -19.6%</td><td class="tr p">    1.50</td><td class="tr p">    7.50</td><td class="tr p">    9.00</td><td class="tr">21.0</td><td class="tr"><span class="rate-bg rate-low">42.9%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">1</td><td class="tr">7</td><td class="tr"><span class="rate-bg rate-low">14.3%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td><td class="tr" style="background:#ffecb3;color:#e65100;font-weight:700">1</td></tr><tr><td class="tl hl-name">陈文杰</td><td class="hl-role">营业员</td><td class="tr ">    0.00</td><td class="tr p">  676.00</td><td class="tr p">  676.00</td><td class="tr p"> 1125.00</td><td class="tr p">   53.8%</td><td class="tr ">    0.00</td><td class="tr p">   11.50</td><td class="tr p">   11.50</td><td class="tr">21.0</td><td class="tr"><span class="rate-bg rate-mid">54.8%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">1</td><td class="tr">13</td><td class="tr"><span class="rate-bg rate-low">7.7%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr><tr><td class="tl hl-name">黄佳敏</td><td class="hl-role">营业员</td><td class="tr p">  498.00</td><td class="tr p">  272.00</td><td class="tr p">  770.00</td><td class="tr p">  359.00</td><td class="tr p">  448.8%</td><td class="tr p">    3.80</td><td class="tr p">    3.25</td><td class="tr p">    7.05</td><td class="tr">21.0</td><td class="tr"><span class="rate-bg rate-low">33.6%</span></td><td class="tr">0.0</td><td class="tr na">-</td><td class="tr">2</td><td class="tr">7</td><td class="tr"><span class="rate-bg rate-mid">28.6%</span></td><td class="tr na">-</td><td class="tr na">-</td><td class="tr na">-</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td><td class="tr">0</td></tr></tbody></table></div></div><div class="panel" style="padding:10px 14px;font-size:11px;color:#444;"><div style="font-weight:700;color:#1a237e;border-bottom:2px solid #e8eaf6;padding-bottom:4px;margin-bottom:6px;">📊 营业员 各指标领先落后分析</div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">①</span>价值积分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>黄佳敏</b> 770分 &nbsp; <b>陈文杰</b> 676分</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>梁继梅</b> 528分 &nbsp; <b>郭艺敏</b> 603分</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">②</span>增存高套</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>陈文杰</b> 11.5 &nbsp; <b>杨金燕</b> 10</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>梁继梅</b> 4.8 &nbsp; <b>黄佳敏</b> 7.05</div></div><div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">③</span>杠保成功率</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span><b>梁继梅</b> 33.3% &nbsp; <b>杨金燕</b> 28.6%</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span><b>陈文杰</b> 7.7% &nbsp; <b>郭艺敏</b> 14.3%</div></div><div style="margin-bottom:2px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">⑤</span>质态关注（需要提醒的人员）</div><div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>郭艺敏</b> 共2项异常：T1无效1、T1无托收1</span></div></div></div>
+<div class="panel" style="padding:10px 14px;font-size:11px;color:#666;">
+  <b>说明：</b>
+  <span style="color:#2e7d32;">■ 绿色</span> = 正值/达标(≥80%)
+  <span style="color:#e65100;margin-left:12px;">■ 橙色</span> = 中等(50-80%)
+  <span style="color:#c62828;margin-left:12px;">■ 红色</span> = 负值/低(<50%)
+  <span style="color:#ccc;margin-left:12px;">—</span> = 不适用/无数据
+  <span style="margin-left:12px;">📌 关键一单仅装维经理对标</span>
+</div>
+</div> <!-- close panel-b -->
+<div class="main-panel" id="panel-m">
+<div class="panel" style="margin-top:10px;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:2px solid #c5cae9;margin-bottom:10px;">
+<span style="font-size:14px;font-weight:700;color:#1a237e;">⚙️ 人员管理</span>
+<span style="font-size:11px;color:#888;">新增/删除人员、调节目标（保存后自动刷新）</span>
+</div>
+<div style="padding:0 14px 14px;">
+<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+<button onclick="addP()" style="padding:6px 14px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">➕ 新增</button>
+<button onclick="saveP()" style="padding:6px 14px;background:#1a237e;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">💾 保存</button>
+<button onclick="resetP()" style="padding:6px 14px;background:#888;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">🔄 重置</button>
+</div>
+<div class="tbl-wrap"><table id="mt" style="min-width:auto;font-size:12px;">
+<thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>增存高套目标</th><th>达量目标</th><th>操作</th></tr></thead>
+<tbody id="mb"></tbody></table></div></div></div>
+<script>
+var BASE_DATA = [{"name": "何贵文", "code": "05010220", "role": "装维经理", "cp": "陈鸿", "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 337.0, "total_score": 337.0, "last_total": 866.0, "mom": -0.0042, "new_gaotao": 0, "exist_gaotao": 4.75, "total_gaotao": 4.75, "gb_total": 10, "gb_success": 1, "gb_rate": 0.1, "dispatch": 52, "convert": 2, "convert_rate": 0.0385, "zhi_dispatch": 14, "zhi_convert": 0, "t1_invalid": 3, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 3, "t1_notrust": 0, "tm1_in": 3, "t1_rate": 0.25, "completion_rate": 0.5938, "daliang_gap": 1.25}, {"name": "冯海枫", "code": "05010278", "role": "装维经理", "cp": "丘培潜", "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 40.0, "total_score": 40.0, "last_total": 502.0, "mom": -0.7961, "new_gaotao": 0, "exist_gaotao": 0.5, "total_gaotao": 0.5, "gb_total": 1, "gb_success": 1, "gb_rate": 1.0, "dispatch": 46, "convert": 2, "convert_rate": 0.0435, "zhi_dispatch": 8, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.0625, "daliang_gap": 5.5}, {"name": "吴镒晖", "code": "05010514", "role": "装维经理", "cp": "潘晨光", "target_total": 8.0, "target_daliang": 6.0, "new_score": 129.0, "exist_score": 808.0, "total_score": 937.0, "last_total": 804.0, "mom": 1.9821, "new_gaotao": 1.0, "exist_gaotao": 11.25, "total_gaotao": 12.25, "gb_total": 14, "gb_success": 1, "gb_rate": 0.0714, "dispatch": 64, "convert": 5, "convert_rate": 0.0781, "zhi_dispatch": 26, "zhi_convert": 1, "t1_invalid": 2, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 1, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 2, "t1_notrust": 1, "tm1_in": 2, "t1_rate": 0.3333, "completion_rate": 1.5312, "daliang_gap": -6.25}, {"name": "夏健", "code": "05006087", "role": "装维经理", "cp": "单飞", "target_total": 8.0, "target_daliang": 6.0, "new_score": 396.0, "exist_score": 270.0, "total_score": 666.0, "last_total": 1366.0, "mom": 0.2476, "new_gaotao": 2.8, "exist_gaotao": 4.25, "total_gaotao": 7.05, "gb_total": 9, "gb_success": 0, "gb_rate": 0.0, "dispatch": 47, "convert": 2, "convert_rate": 0.0426, "zhi_dispatch": 14, "zhi_convert": 1, "t1_invalid": 2, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 2, "t1_notrust": 1, "tm1_in": 3, "t1_rate": 0.3333, "completion_rate": 0.8812, "daliang_gap": -1.05}, {"name": "廖罗养", "code": "05006188", "role": "装维经理", "cp": "陈梓城", "target_total": 8.0, "target_daliang": 6.0, "new_score": 288.0, "exist_score": 30.0, "total_score": 318.0, "last_total": 667.0, "mom": 0.2199, "new_gaotao": 1.8, "exist_gaotao": 0.5, "total_gaotao": 2.3, "gb_total": 3, "gb_success": 1, "gb_rate": 0.3333, "dispatch": 42, "convert": 1, "convert_rate": 0.0238, "zhi_dispatch": 12, "zhi_convert": 0, "t1_invalid": 4, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 1, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 4, "t1_notrust": 2, "tm1_in": 4, "t1_rate": 0.2, "completion_rate": 0.2875, "daliang_gap": 3.7}, {"name": "张禄", "code": "06214145", "role": "装维经理", "cp": "郑创佳", "target_total": 8.0, "target_daliang": 6.0, "new_score": 1116.0, "exist_score": 246.0, "total_score": 1362.0, "last_total": 378.0, "mom": 8.2199, "new_gaotao": 7.6, "exist_gaotao": 3.0, "total_gaotao": 10.6, "gb_total": 9, "gb_success": 2, "gb_rate": 0.2222, "dispatch": 42, "convert": 6, "convert_rate": 0.1429, "zhi_dispatch": 10, "zhi_convert": 1, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 3, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 1.325, "daliang_gap": -4.6}, {"name": "程海鹏", "code": "05010539", "role": "装维经理", "cp": "覃庆朋", "target_total": 18.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 0, "total_score": 0, "last_total": 0, "mom": null, "new_gaotao": 0, "exist_gaotao": 0, "total_gaotao": 0, "gb_total": 0, "gb_success": 0, "gb_rate": null, "dispatch": 0, "convert": 0, "convert_rate": null, "zhi_dispatch": 0, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.0, "daliang_gap": 6.0}, {"name": "罗迪苗", "code": "05006057", "role": "装维经理", "cp": "覃庆朋", "target_total": 0, "target_daliang": 6.0, "new_score": 0, "exist_score": 55.0, "total_score": 55.0, "last_total": 579.0, "mom": -0.7569, "new_gaotao": 0, "exist_gaotao": 0.75, "total_gaotao": 0.75, "gb_total": 2, "gb_success": 0, "gb_rate": 0.0, "dispatch": 20, "convert": 2, "convert_rate": 0.1, "zhi_dispatch": 4, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": null, "daliang_gap": 5.25}, {"name": "胡亮", "code": "05010515", "role": "装维经理", "cp": "张文聪", "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 120.0, "total_score": 120.0, "last_total": 609.0, "mom": -0.4958, "new_gaotao": 0, "exist_gaotao": 1.75, "total_gaotao": 1.75, "gb_total": 4, "gb_success": 1, "gb_rate": 0.25, "dispatch": 40, "convert": 6, "convert_rate": 0.15, "zhi_dispatch": 14, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.2188, "daliang_gap": 4.25}, {"name": "邓锦安", "code": "05006277", "role": "装维经理", "cp": "陈敏飞", "target_total": 9.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 890.0, "total_score": 890.0, "last_total": 2120.0, "mom": 0.0742, "new_gaotao": 0, "exist_gaotao": 11.5, "total_gaotao": 11.5, "gb_total": 26, "gb_success": 2, "gb_rate": 0.0769, "dispatch": 59, "convert": 47, "convert_rate": 0.7966, "zhi_dispatch": 3, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 1.2778, "daliang_gap": -5.5}, {"name": "陈志钜", "code": "05006170", "role": "装维经理", "cp": "卫子杰", "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 329.0, "total_score": 329.0, "last_total": 604.0, "mom": 0.3938, "new_gaotao": 0, "exist_gaotao": 4.5, "total_gaotao": 4.5, "gb_total": 9, "gb_success": 1, "gb_rate": 0.1111, "dispatch": 24, "convert": 2, "convert_rate": 0.0833, "zhi_dispatch": 6, "zhi_convert": 0, "t1_invalid": 1, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 1, "t1_notrust": 0, "tm1_in": 1, "t1_rate": 0.5, "completion_rate": 0.5625, "daliang_gap": 1.5}, {"name": "马从柏", "code": "05006102", "role": "装维经理", "cp": "单飞", "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 468.0, "total_score": 468.0, "last_total": 493.0, "mom": 1.4291, "new_gaotao": 0, "exist_gaotao": 6.75, "total_gaotao": 6.75, "gb_total": 14, "gb_success": 1, "gb_rate": 0.0714, "dispatch": 48, "convert": 3, "convert_rate": 0.0625, "zhi_dispatch": 8, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.8438, "daliang_gap": -0.75}, {"name": "马森林", "code": "05006287", "role": "装维经理", "cp": "禤铠畅", "target_total": 8.0, "target_daliang": 6.0, "new_score": 517.0, "exist_score": 299.0, "total_score": 816.0, "last_total": 536.0, "mom": 2.8955, "new_gaotao": 3.8, "exist_gaotao": 4.0, "total_gaotao": 7.8, "gb_total": 11, "gb_success": 1, "gb_rate": 0.0909, "dispatch": 40, "convert": 5, "convert_rate": 0.125, "zhi_dispatch": 11, "zhi_convert": 0, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 1, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.975, "daliang_gap": -1.8}, {"name": "丘培潜", "code": "16000097", "role": "片区经理", "cp": "冯海枫", "target_total": 12.0, "target_daliang": 19.0, "new_score": 201.0, "exist_score": 0, "total_score": 201.0, "last_total": 2119.0, "mom": -0.7573, "new_gaotao": 1.3, "exist_gaotao": 0, "total_gaotao": 1.3, "gb_total": 2, "gb_success": 1, "gb_rate": 0.5, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 3, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 3, "t1_notrust": 4, "tm1_in": 6, "t1_rate": 0.25, "completion_rate": 0.1083, "daliang_gap": 17.7}, {"name": "刘思祺", "code": "23130261", "role": "片区经理", "cp": "邓锦安", "target_total": 18.0, "target_daliang": 10.0, "new_score": 0, "exist_score": 873.0, "total_score": 873.0, "last_total": 1787.0, "mom": 0.2501, "new_gaotao": 0, "exist_gaotao": 11.0, "total_gaotao": 11.0, "gb_total": 21, "gb_success": 0, "gb_rate": 0.0, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.6111, "daliang_gap": -1.0}, {"name": "卫子杰", "code": "16000186", "role": "片区经理", "cp": "陈志钜", "target_total": 12.0, "target_daliang": 19.0, "new_score": 1458.0, "exist_score": 160.0, "total_score": 1618.0, "last_total": 1582.0, "mom": 1.6171, "new_gaotao": 9.7, "exist_gaotao": 3.0, "total_gaotao": 12.7, "gb_total": 17, "gb_success": 3, "gb_rate": 0.1765, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 6, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 1, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 6, "t1_notrust": 5, "tm1_in": 8, "t1_rate": 0.1429, "completion_rate": 1.0583, "daliang_gap": 6.3}, {"name": "张文聪", "code": "16000180", "role": "片区经理", "cp": "胡亮", "target_total": 12.0, "target_daliang": 19.0, "new_score": 158.0, "exist_score": 90.0, "total_score": 248.0, "last_total": 378.0, "mom": 0.6788, "new_gaotao": 1.0, "exist_gaotao": 1.25, "total_gaotao": 2.25, "gb_total": 5, "gb_success": 1, "gb_rate": 0.2, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 3, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 3, "t1_notrust": 0, "tm1_in": 3, "t1_rate": 0.25, "completion_rate": 0.1875, "daliang_gap": 16.75}, {"name": "梁盛威", "code": "23130255", "role": "片区经理", "cp": "-", "target_total": 13.0, "target_daliang": 0, "new_score": 79.0, "exist_score": 0, "total_score": 79.0, "last_total": 258.0, "mom": -0.2165, "new_gaotao": 0.5, "exist_gaotao": 0, "total_gaotao": 0.5, "gb_total": 0, "gb_success": 0, "gb_rate": null, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 1, "tm1_in": 1, "t1_rate": null, "completion_rate": 0.0385, "daliang_gap": null}, {"name": "潘晨光", "code": "23130213", "role": "片区经理", "cp": "吴镒晖", "target_total": 12.0, "target_daliang": 19.0, "new_score": 436.0, "exist_score": 32.0, "total_score": 468.0, "last_total": 892.0, "mom": 0.3425, "new_gaotao": 3.0, "exist_gaotao": 0.5, "total_gaotao": 3.5, "gb_total": 5, "gb_success": 2, "gb_rate": 0.4, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.2917, "daliang_gap": 15.5}, {"name": "禤铠畅", "code": "23130077", "role": "片区经理", "cp": "马从柏", "target_total": 12.0, "target_daliang": 19.0, "new_score": 169.0, "exist_score": 348.0, "total_score": 517.0, "last_total": 737.0, "mom": 0.795, "new_gaotao": 1.0, "exist_gaotao": 5.5, "total_gaotao": 6.5, "gb_total": 7, "gb_success": 3, "gb_rate": 0.4286, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 1, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 1, "t1_notrust": 0, "tm1_in": 1, "t1_rate": 0.5, "completion_rate": 0.5417, "daliang_gap": 12.5}, {"name": "覃庆朋", "code": "23130308", "role": "片区经理", "cp": "罗迪苗", "target_total": 12.0, "target_daliang": 19.0, "new_score": 276.0, "exist_score": 90.0, "total_score": 366.0, "last_total": 399.0, "mom": 1.3472, "new_gaotao": 1.6, "exist_gaotao": 1.0, "total_gaotao": 2.6, "gb_total": 6, "gb_success": 2, "gb_rate": 0.3333, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 2, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 2, "t1_notrust": 0, "tm1_in": 2, "t1_rate": 0.3333, "completion_rate": 0.2167, "daliang_gap": 16.4}, {"name": "郑创佳", "code": "16000104", "role": "片区经理", "cp": "张禄", "target_total": 12.0, "target_daliang": 19.0, "new_score": 59.0, "exist_score": 0, "total_score": 59.0, "last_total": 654.0, "mom": -0.7692, "new_gaotao": 0.3, "exist_gaotao": 0, "total_gaotao": 0.3, "gb_total": 1, "gb_success": 0, "gb_rate": 0.0, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 1, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 1, "t1_notrust": 1, "tm1_in": 1, "t1_rate": 0.5, "completion_rate": 0.025, "daliang_gap": 18.7}, {"name": "陈敏飞", "code": "23130311", "role": "片区经理", "cp": "-", "target_total": 6.0, "target_daliang": 0, "new_score": 0, "exist_score": 0, "total_score": 0, "last_total": 0, "mom": null, "new_gaotao": 0, "exist_gaotao": 0, "total_gaotao": 0, "gb_total": 0, "gb_success": 0, "gb_rate": null, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.0, "daliang_gap": null}, {"name": "陈梓城", "code": "23130331", "role": "片区经理", "cp": "廖罗养", "target_total": 9.0, "target_daliang": 15.0, "new_score": 318.0, "exist_score": 0, "total_score": 318.0, "last_total": 100.0, "mom": 7.1371, "new_gaotao": 2.3, "exist_gaotao": 0, "total_gaotao": 2.3, "gb_total": 2, "gb_success": 1, "gb_rate": 0.5, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 2, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.2556, "daliang_gap": 12.7}, {"name": "陈鸿", "code": "23130307", "role": "片区经理", "cp": "何贵文", "target_total": 9.0, "target_daliang": 15.0, "new_score": 229.0, "exist_score": 0, "total_score": 229.0, "last_total": 420.0, "mom": 0.3952, "new_gaotao": 1.5, "exist_gaotao": 0, "total_gaotao": 1.5, "gb_total": 1, "gb_success": 1, "gb_rate": 1.0, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 1, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 1, "t1_notrust": 1, "tm1_in": 2, "t1_rate": 0.5, "completion_rate": 0.1667, "daliang_gap": 13.5}, {"name": "杨金燕", "code": "21109005", "role": "营业员", "cp": "-", "target_total": 21.0, "target_daliang": 0, "new_score": 0, "exist_score": 638.0, "total_score": 638.0, "last_total": 876.0, "mom": 0.8636, "new_gaotao": 0, "exist_gaotao": 10.0, "total_gaotao": 10.0, "gb_total": 7, "gb_success": 2, "gb_rate": 0.2857, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.4762, "daliang_gap": null}, {"name": "梁继梅", "code": "21111758", "role": "营业员", "cp": "-", "target_total": 21.0, "target_daliang": 0, "new_score": 428.0, "exist_score": 100.0, "total_score": 528.0, "last_total": 683.0, "mom": 0.9781, "new_gaotao": 3.3, "exist_gaotao": 1.5, "total_gaotao": 4.8, "gb_total": 3, "gb_success": 1, "gb_rate": 0.3333, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.2286, "daliang_gap": null}, {"name": "郭艺敏", "code": "21109017", "role": "营业员", "cp": "-", "target_total": 21.0, "target_daliang": 0, "new_score": 199.0, "exist_score": 404.0, "total_score": 603.0, "last_total": 1920.0, "mom": -0.1964, "new_gaotao": 1.5, "exist_gaotao": 7.5, "total_gaotao": 9.0, "gb_total": 7, "gb_success": 1, "gb_rate": 0.1429, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 1, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 1, "t1_notrust": 1, "tm1_in": 1, "t1_rate": 0.5, "completion_rate": 0.4286, "daliang_gap": null}, {"name": "陈文杰", "code": "21109083", "role": "营业员", "cp": "-", "target_total": 21.0, "target_daliang": 0, "new_score": 0, "exist_score": 676.0, "total_score": 676.0, "last_total": 1125.0, "mom": 0.5376, "new_gaotao": 0, "exist_gaotao": 11.5, "total_gaotao": 11.5, "gb_total": 13, "gb_success": 1, "gb_rate": 0.0769, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.5476, "daliang_gap": null}, {"name": "黄佳敏", "code": "21111755", "role": "营业员", "cp": "-", "target_total": 21.0, "target_daliang": 0, "new_score": 498.0, "exist_score": 272.0, "total_score": 770.0, "last_total": 359.0, "mom": 4.4883, "new_gaotao": 3.8, "exist_gaotao": 3.25, "total_gaotao": 7.05, "gb_total": 7, "gb_success": 2, "gb_rate": 0.2857, "dispatch": null, "convert": null, "convert_rate": null, "zhi_dispatch": null, "zhi_convert": null, "t1_invalid": 0, "t3_invalid": 0, "t6_invalid": 0, "t0_notfull": 0, "t0_invalid": 0, "t0_notrust": 0, "t1_invalid_2": 0, "t1_notrust": 0, "tm1_in": 0, "t1_rate": null, "completion_rate": 0.3357, "daliang_gap": null}];
+
+function ld(){var s=localStorage.getItem("pm");return s?JSON.parse(s):BASE_DATA}
+function rm(){
+  var d=ld(),h="";
+  d.forEach(function(p,i){
+    h+="<tr><td>"+(i+1)+'</td><td class="tl"><input value="'+p.name.replace(/"/g,"&quot;")+'" id="n'+i+'" style="width:80px;"></td>';
+    h+='<td><input value="'+(p.code||"")+'" id="c'+i+'" style="width:80px;"></td>';
+    h+='<td><select id="r'+i+'" style="width:90px;">'+["装维经理","片区经理","营业员"].map(function(r){return '<option'+(r===p.role?' selected="selected"':'')+'>'+r+'</option>'}).join("")+'</select></td>';
+    h+='<td><input value="'+(p.cp||"")+'" id="cp'+i+'" style="width:70px;"></td>';
+    h+='<td><input type="number" step="0.1" value="'+(p.target_total||0)+'" id="tt'+i+'" style="width:70px"></td>';
+    h+='<td><input type="number" step="0.1" value="'+(p.target_daliang||0)+'" id="td'+i+'" style="width:70px"></td>';
+    h+='<td><button onclick="dp('+i+')" style="padding:2px 8px;background:#c62828;color:#fff;border:none;border-radius:4px;cursor:pointer">删除</button></td></tr>'
+  });
+  document.getElementById("mb").innerHTML=h;
+}
+function rmc(){
+  document.querySelectorAll("table:not(#mt)").forEach(function(t){
+    var rh=t.closest(".panel").querySelector(".role-header .rc");
+    if(!rh)return;
+    var cnt=t.querySelectorAll("tbody tr:not([style*='none'])").length;
+    rh.textContent=cnt+'人';
+  });
+}
+function saveP(){
+  var d=ld();
+  d.forEach(function(p,i){
+    p.name=document.getElementById("n"+i).value;
+    p.code=document.getElementById("c"+i).value;
+    p.role=document.getElementById("r"+i).value;
+    p.cp=document.getElementById("cp"+i).value;
+    p.target_total=parseFloat(document.getElementById("tt"+i).value)||0;
+    p.target_daliang=parseFloat(document.getElementById("td"+i).value)||0;
+  });
+  localStorage.setItem("pm",JSON.stringify(d));
+  updateCards();
+  alert("✅ 已保存");
+  setTimeout(function(){updateAnalysis();location.reload()},200);
+}
+function addP(){
+  var d=ld();
+  d.push({name:"新人员",code:"",role:"装维经理",cp:"-",target_total:0,target_daliang:0});
+  localStorage.setItem("pm",JSON.stringify(d));
+  rm();
+}
+function dp(i){
+  if(!confirm("确认删除?"))return;
+  var d=ld();
+  d.splice(i,1);
+  localStorage.setItem("pm",JSON.stringify(d));
+  updateCards();
+  // 使用缓存破坏参数强制页面刷新
+  var base = window.location.href.split('?')[0];
+  window.location.href = base + '?v=' + Date.now();
+}
+function resetP(){
+  if(!confirm("确认重置？这将清除所有人员管理数据，恢复初始状态。"))return;
+  localStorage.removeItem("pm");
+  location.reload();
+}
+
+function syncDataTable(){
+  var s = localStorage.getItem("pm");
+  if(!s)return;
+  var md;
+  try{md=JSON.parse(s)}catch(e){return}
+  if(!md||!md.length)return;
+  var existing={};
+  document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
+    var c=r.querySelector("td:first-child");
+    if(c) existing[c.textContent.trim()]=r;
+  });
+  md.forEach(function(p){
+    if(existing[p.name])return;
+    var tbl=null;
+    document.querySelectorAll("table:not(#mt)").forEach(function(t){
+      var h=t.closest(".panel").querySelector(".role-header");
+      if(h&&h.textContent.includes(p.role)) tbl=t;
+    });
+    if(!tbl)return;
+    var tb=tbl.querySelector("tbody"),nr=tb.insertRow();
+    for(var i=0;i<25;i++){var nc=nr.insertCell();nc.className='tr';}
+    nc=nr.cells[0];nc.className='tl hl-name';nc.textContent=p.name;
+    nc=nr.cells[1];nc.className='hl-role';nc.textContent=p.role;
+    for(var i=2;i<25;i++){nr.cells[i].textContent='0';}
+    nr.cells[4].textContent='0.00';nr.cells[5].textContent='0.00';
+    nr.cells[6].textContent='-';nr.cells[9].textContent='-';
+    nr.cells[10].textContent=(p.target_total||0).toFixed(1);
+    nr.cells[11].innerHTML='<span class="rate-bg">-</span>';
+    nr.cells[12].textContent=(p.target_daliang||0).toFixed(1);
+    nr.cells[13].textContent='-';
+    nr.cells[16].innerHTML='<span class="rate-bg rate-low">0.0%</span>';
+    nr.cells[19].textContent='-';
+    // Update role header count
+    var rh=tbl.closest(".panel").querySelector(".role-header .rc");
+    if(rh)rh.textContent=parseInt(rh.textContent)+1+'人';
+  });
+}
+
+function updateAnalysis(){
+  document.querySelectorAll(".role-header").forEach(function(hdr){
+    var pan = hdr.closest(".panel");
+    var t = pan && pan.querySelector("table");
+    if(!t)return;
+    var rows = [];
+    t.querySelectorAll("tbody tr").forEach(function(r){
+      if(r.style.display === "none") return;
+      var c = r.querySelectorAll("td");
+      if(c.length<25)return;
+      var nm = c[0].textContent.trim();
+      rows.push({e:r, n:nm, s:parseFloat(c[4].textContent)||0, g:parseFloat(c[9].textContent)||0,
+        gb:parseFloat(c[16].textContent)||0, d:parseInt(c[17].textContent)||0, cv:parseInt(c[18].textContent)||0, cvt:parseFloat(c[19].textContent)||0,
+        zt:(parseInt(c[20].textContent)||0)+(parseInt(c[21].textContent)||0)+(parseInt(c[22].textContent)||0)+(parseInt(c[23].textContent)||0)+(parseInt(c[24].textContent)||0)});
+    });
+    if(!rows.length)return;
+    var ap = pan.nextElementSibling;
+    if(!ap||!ap.innerHTML.includes('各指标领先落后分析'))return;
+    
+    function top2(arr,kf){
+      var s = arr.slice().sort(function(a,b){return kf(b)-kf(a)});
+      return [s.slice(0,2), s.slice(-2).reverse()];
+    }
+    function fmt4(arr,kf,suf){
+      return arr.map(function(p){return '<b>'+p.n+'</b> '+kf(p).toFixed(1)+suf}).join(' &nbsp; ');
+    }
+    
+    var html = '';
+    // 1. value score
+    var t2 = top2(rows,function(p){return p.s});
+    html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">①</span>价值积分</div>';
+    if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.s},'分')+'</div>';
+    if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.s},'分')+'</div>';
+    html += '</div>';
+    // 2. gaotao
+    t2 = top2(rows,function(p){return p.g});
+    html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">②</span>增存高套</div>';
+    if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.g},'')+'</div>';
+    if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.g},'')+'</div>';
+    html += '</div>';
+    // 3. gangbao
+    var gbr = rows.filter(function(p){return p.gb>0});
+    if(gbr.length){
+      t2 = top2(gbr,function(p){return p.gb});
+      html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">③</span>杠保成功率</div>';
+      if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.gb},'%')+'</div>';
+      if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.gb},'%')+'</div>';
+      html += '</div>';
+    }
+    // 4. key order - only for role with dispatch data
+    var kor = rows.filter(function(p){return p.d>0});
+    if(kor.length){
+      t2 = top2(kor,function(p){return p.cvt});
+      if(t2[0].length) html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">④</span>关键一单转化率<span style="font-size:10px;color:#999;font-weight:400;margin-left:4px;">（仅装维经理）</span></div>';
+      if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+t2[0].map(function(p){return '<b>'+p.n+'</b> '+p.cvt.toFixed(1)+'%'+'（派单'+p.d+'、转化'+p.cv+'）'}).join(' &nbsp; ')+'</div>';
+      if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+t2[1].map(function(p){return '<b>'+p.n+'</b> '+p.cvt.toFixed(1)+'%'+'（派单'+p.d+'、转化'+p.cv+'）'}).join(' &nbsp; ')+'</div>';
+      html += '</div>';
+    }
+    // 5. zhitai
+    var ztr = rows.filter(function(p){return p.zt>0});
+    if(ztr.length){
+      html += '<div style="margin-bottom:2px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">⑤</span>质态关注（需要提醒的人员）</div>';
+      ztr.sort(function(a,b){return b.zt-a.zt});
+      ztr.slice(0,2).forEach(function(p){
+        var f=[];
+        var c=p.e.querySelectorAll("td");
+        if(parseInt(c[20].textContent||0)>0) f.push('T0未满卡'+parseInt(c[20].textContent));
+        if(parseInt(c[21].textContent||0)>0) f.push('T0无效'+parseInt(c[21].textContent));
+        if(parseInt(c[22].textContent||0)>0) f.push('T0无托收'+parseInt(c[22].textContent));
+        if(parseInt(c[23].textContent||0)>0) f.push('T1无效'+parseInt(c[23].textContent));
+        if(parseInt(c[24].textContent||0)>0) f.push('T1无托收'+parseInt(c[24].textContent));
+        html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>'+p.n+'</b> 共'+p.zt+'项异常：'+f.join('、')+'</span></div>';
+      });
+      html += '</div>';
+    }
+    ap.innerHTML = '<div style="font-weight:700;color:#1a237e;border-bottom:2px solid #e8eaf6;padding-bottom:4px;margin-bottom:6px;">📊 '+hdr.textContent.trim().replace(/\d+人/,'').trim()+' 各指标领先落后分析</div>'+html;
+  });
+}
+
+function ap(){
+  if(!s)return;
+  var md;
+  try{md=JSON.parse(s)}catch(e){return}
+  if(!md||!md.length)return;
+  var nm={};
+  md.forEach(function(p){nm[p.name]=p});
+  document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(row){
+    var nc=row.querySelector("td:first-child");
+    if(!nc)return;
+    var na=nc.textContent.trim(),p=nm[na];
+    if(!p){row.remove();return}
+    var t=row.querySelectorAll("td");
+    if(t.length<20)return;
+    t[10].textContent=(p.target_total||0).toFixed(1);
+    t[12].textContent=(p.target_daliang||0).toFixed(1);
+    var tot=parseFloat(t[9].textContent)||0,tar=p.target_total||0;
+    if(tar>0){
+      var r=tot/tar;
+      t[11].innerHTML='<span class="rate-bg '+(r>=0.8?'rate-high':r>=0.5?'rate-mid':'rate-low')+'">'+(r*100).toFixed(1)+'%</span>';
+    }
+    t[13].innerHTML=((p.target_daliang||0)-tot).toFixed(1);
+    t[13].className="tr "+(((p.target_daliang||0)-tot)>=0?"p":"n");
+  });
+  document.querySelectorAll(".role-header").forEach(function(h){
+    var c=h.closest(".panel").querySelectorAll("tbody tr:not([style*='none'])").length;
+    var r=h.querySelector(".rc");
+    if(r)r.textContent=c+"人";
+  });
+  var rz=document.querySelectorAll("table:not(#mt) tbody tr:not([style*='none'])");
+  var rc={"装维经理":0,"片区经理":0,"营业员":0};
+  rz.forEach(function(r){var c=r.querySelectorAll("td");if(c.length>1)rc[c[1].textContent.trim()]++});
+  var ca=document.querySelectorAll(".summary-card .num");
+  if(ca.length>=4){ca[0].textContent=rz.length;ca[1].textContent=rc["装维经理"];ca[2].textContent=rc["片区经理"];ca[3].textContent=rc["营业员"]}
+}
+window.addEventListener("DOMContentLoaded",function(){setTimeout(ap,100);setTimeout(function(){updateCards()},50);setTimeout(rm,150);setTimeout(function(){syncDataTable();setTimeout(updateAnalysis,100)},200)});
+window.addEventListener("pageshow",function(){setTimeout(ap,50);setTimeout(function(){updateCards()},30);setTimeout(rm,100);
+// 独立更新摘要卡片 - 直接从 localStorage/BASE_DATA 统计
+function updateCards(){
+  var s=localStorage.getItem("pm");
+  var d;
+  if(s){try{d=JSON.parse(s)}catch(e){d=BASE_DATA}}else{d=BASE_DATA}
+  if(!d||!d.length)return;
+  var t=d.length,zw=0,pq=0,yy=0;
+  d.forEach(function(p){
+    if(p.role==="装维经理")zw++;
+    else if(p.role==="片区经理")pq++;
+    else if(p.role==="营业员")yy++;
+  });
+  var ca=document.querySelectorAll(".summary-card .num");
+  if(ca.length>=4){ca[0].textContent=t;ca[1].textContent=zw;ca[2].textContent=pq;ca[3].textContent=yy;}
+  // 更新角色标题计数
+  document.querySelectorAll(".role-header").forEach(function(h){
+    var r=h.querySelector(".rc");
+    if(!r)return;
+    var role=h.textContent.trim().replace(/\d+人/,'').trim();
+    var cnt=0;
+    d.forEach(function(p){if(p.role===role)cnt++;});
+    r.textContent=cnt+"人";
+  });
+}
+
+// 独立删除行监听器 - 不依赖 ap/ld 等函数
+(function(){
+  document.addEventListener("DOMContentLoaded",function(){
+    var s=localStorage.getItem("pm");
+    if(!s)return;
+    var d;
+    try{d=JSON.parse(s)}catch(e){return}
+    if(!d||!d.length)return;
+    var n={};
+    d.forEach(function(p){n[p.name]=1});
+    document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
+      var c=r.querySelector("td:first-child");
+      if(c&&!n[c.textContent.trim()]){r.remove();}
+    });
+  });
+})();setTimeout(function(){syncDataTable();setTimeout(updateAnalysis,50)},150)});
+setTimeout(rm,100);
+// 独立更新摘要卡片 - 直接从 localStorage/BASE_DATA 统计
+function updateCards(){
+  var s=localStorage.getItem("pm");
+  var d;
+  if(s){try{d=JSON.parse(s)}catch(e){d=BASE_DATA}}else{d=BASE_DATA}
+  if(!d||!d.length)return;
+  var t=d.length,zw=0,pq=0,yy=0;
+  d.forEach(function(p){
+    if(p.role==="装维经理")zw++;
+    else if(p.role==="片区经理")pq++;
+    else if(p.role==="营业员")yy++;
+  });
+  var ca=document.querySelectorAll(".summary-card .num");
+  if(ca.length>=4){ca[0].textContent=t;ca[1].textContent=zw;ca[2].textContent=pq;ca[3].textContent=yy;}
+  // 更新角色标题计数
+  document.querySelectorAll(".role-header").forEach(function(h){
+    var r=h.querySelector(".rc");
+    if(!r)return;
+    var role=h.textContent.trim().replace(/\d+人/,'').trim();
+    var cnt=0;
+    d.forEach(function(p){if(p.role===role)cnt++;});
+    r.textContent=cnt+"人";
+  });
+}
+
+// 独立删除行监听器 - 不依赖 ap/ld 等函数
+(function(){
+  document.addEventListener("DOMContentLoaded",function(){
+    var s=localStorage.getItem("pm");
+    if(!s)return;
+    var d;
+    try{d=JSON.parse(s)}catch(e){return}
+    if(!d||!d.length)return;
+    var n={};
+    d.forEach(function(p){n[p.name]=1});
+    document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
+      var c=r.querySelector("td:first-child");
+      if(c&&!n[c.textContent.trim()]){r.remove();}
+    });
+  });
+})();
+</script>
+</div>
+
+<div class="footer">沙太人员数据对标看板 · 2026-05 · 数据源: 6月清单</div>
+</div>
+</body>
+</html>
