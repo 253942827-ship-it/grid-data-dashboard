@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网格运营数据分析报告</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Noto Sans SC',sans-serif;background:#f0f2f5;padding:40px 20px;color:#1a1a2e}
+  .page{max-width:960px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.1);overflow:hidden}
+  
+  .header{background:linear-gradient(135deg,#1a237e,#3949ab);color:#fff;padding:40px 50px 32px;position:relative}
+  .header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#ffd54f,#ffb300,#ffd54f)}
+  .header .meta{font-size:13px;opacity:.7;margin-bottom:8px}
+  .header h1{font-size:28px;letter-spacing:2px;margin-bottom:4px}
+  .header .sub{font-size:14px;opacity:.85}
+  
+  .body{padding:40px 50px 50px}
+
+  .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+  .summary-card{padding:18px 16px;border-radius:10px;text-align:center}
+  .summary-card .num{font-size:26px;font-weight:700}
+  .summary-card .label{font-size:13px;opacity:.7;margin-top:4px}
+  .sc-blue{background:#e3f2fd;color:#1565c0}
+  .sc-green{background:#e8f5e9;color:#2e7d32}
+  .sc-red{background:#fce4ec;color:#c62828}
+  .sc-orange{background:#fff3e0;color:#e65100}
+
+  .section{margin-bottom:36px}
+  .section:last-child{margin-bottom:0}
+  .section-title{font-size:18px;font-weight:700;color:#1a237e;padding-bottom:10px;border-bottom:2px solid #e8eaf6;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px}
+  th{background:#e8eaf6;color:#1a237e;font-weight:600;padding:10px 12px;text-align:left;font-size:13px}
+  td{padding:8px 12px;border-bottom:1px solid #f0f0f0}
+  tr:hover td{background:#fafbff}
+  .num-col{text-align:right;font-variant-numeric:tabular-nums;font-family:'Menlo',monospace;font-size:13px}
+  .pos{color:#2e7d32}
+  .neg{color:#c62828}
+
+  .insight-box{background:#f5f7ff;border-left:4px solid #3949ab;padding:16px 20px;border-radius:0 8px 8px 0;margin:16px 0}
+  .insight-box .title{font-weight:700;color:#1a237e;margin-bottom:4px;font-size:14px}
+  .insight-box p{font-size:14px;color:#37474f;line-height:1.7}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .stat-card{border:1px solid #e0e0e0;border-radius:8px;padding:16px}
+  .stat-card h4{font-size:14px;color:#1a237e;margin-bottom:8px}
+  .stat-card .stat-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#37474f}
+  .stat-card .stat-row .val{font-weight:600}
+
+  .badge-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .badge-list .item{background:#f5f5f5;padding:4px 10px;border-radius:12px;font-size:12px;color:#37474f}
+
+  .mo-card{text-align:center;padding:14px;border-radius:8px}
+  .mo-card .mo-val{font-size:22px;font-weight:700}
+  .mo-card .mo-label{font-size:12px;opacity:.7;margin-top:2px}
+
+  hr{border:none;border-top:1px solid #eee;margin:28px 0}
+
+  @media(max-width:600px){
+    body{padding:12px 8px}
+    .header{padding:30px 20px 24px}
+    .header h1{font-size:22px}
+    .body{padding:24px 16px 36px}
+    .summary-row{grid-template-columns:repeat(2,1fr)}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="meta">报告日期：2026-06-16 &nbsp;|&nbsp; 数据周期：2026年4月 vs 2026年5月</div>
+    <h1>网格运营数据综合分析报告（月度对比）</h1>
+    <div class="sub">覆盖 99 个重叠网格，对比 4 月与 5 月的净增积分变化</div>
+  </div>
+
+  <div class="body">
+
+    <!-- 全局概览 -->
+    <div class="section">
+      <div class="section-title">📊 整体概览</div>
+      <div class="grid-3">
+        <div class="mo-card" style="background:#e3f2fd;">
+          <div class="mo-val" style="color:#1565c0;">99</div>
+          <div class="mo-label">重叠网格数（两月均有数据）</div>
+        </div>
+        <div class="mo-card" style="background:#e8f5e9;">
+          <div class="mo-val" style="color:#2e7d32;">47</div>
+          <div class="mo-label">5 月环比上升的网格</div>
+        </div>
+        <div class="mo-card" style="background:#fce4ec;">
+          <div class="mo-val" style="color:#c62828;">52</div>
+          <div class="mo-label">5 月环比下降的网格</div>
+        </div>
+      </div>
+
+      <div class="insight-box">
+        <div class="title">月度趋势总览</div>
+        <p>4 → 5 月整体净增积分从 <strong>-4,361</strong> 回升至 <strong>-1,259</strong>，环比改善 <strong>+3,102</strong>。<br>
+        虽然仍为负值，但失血速度明显收窄。回升主要驱动力是<strong>拆机销户大幅减少</strong>（4月 -3.88 万 → 5月 -2.56 万，缩减 1.32 万），但<strong>纯新套餐也同步下滑</strong>（4月 +3.09 万 → 5月 +1.94 万，减少 1.15 万）。</p>
+      </div>
+    </div>
+
+    <!-- 一、月度环比变化 TOP 10 -->
+    <div class="section">
+      <div class="section-title">📈 一、月度环比变化最大 TOP 10</div>
+
+      <div class="grid-2">
+        <div>
+          <p style="font-size:13px;color:#2e7d32;margin-bottom:6px;"><strong>环比改善最大（上升）</strong></p>
+          <table>
+            <tr><th>网格</th><th>4月</th><th>5月</th><th>环比变化</th></tr>
+            <tr><td>花生寮</td><td class="num-col neg">-5168.86</td><td class="num-col pos">+5207.96</td><td class="num-col pos">+10376.82</td></tr>
+            <tr><td>河水村</td><td class="num-col neg">-2223.32</td><td class="num-col pos">+585.97</td><td class="num-col pos">+2809.29</td></tr>
+            <tr><td>先烈东横路36号大院</td><td class="num-col neg">-1077.67</td><td class="num-col pos">+262.30</td><td class="num-col pos">+1339.97</td></tr>
+            <tr><td>牛利岗</td><td class="num-col neg">-589.15</td><td class="num-col pos">+264.48</td><td class="num-col pos">+853.63</td></tr>
+            <tr><td>越秀天河和樾府</td><td class="num-col pos">+1922.67</td><td class="num-col pos">+2749.60</td><td class="num-col pos">+826.93</td></tr>
+            <tr><td>花城汽水厂宿舍</td><td class="num-col neg">-768.29</td><td class="num-col pos">+210.67</td><td class="num-col pos">+978.96</td></tr>
+            <tr><td>清水塘</td><td class="num-col neg">-779.98</td><td class="num-col neg">-151.58</td><td class="num-col pos">+628.40</td></tr>
+            <tr><td>沙河大街社区</td><td class="num-col neg">-903.75</td><td class="num-col neg">-399.09</td><td class="num-col pos">+504.66</td></tr>
+            <tr><td>先烈东横路40号大院</td><td class="num-col neg">-344.05</td><td class="num-col pos">+158.29</td><td class="num-col pos">+502.34</td></tr>
+            <tr><td>长腰岭</td><td class="num-col neg">-892.05</td><td class="num-col neg">-413.59</td><td class="num-col pos">+478.46</td></tr>
+          </table>
+        </div>
+        <div>
+          <p style="font-size:13px;color:#c62828;margin-bottom:6px;"><strong>环比恶化最大（下降）</strong></p>
+          <table>
+            <tr><th>网格</th><th>4月</th><th>5月</th><th>环比变化</th></tr>
+            <tr><td>坑口新村</td><td class="num-col pos">+1095.58</td><td class="num-col neg">-1113.18</td><td class="num-col neg">-2208.76</td></tr>
+            <tr><td>沙东村</td><td class="num-col pos">+1478.59</td><td class="num-col neg">-393.34</td><td class="num-col neg">-1871.93</td></tr>
+            <tr><td>广州大道北五仙桥</td><td class="num-col pos">+799.35</td><td class="num-col neg">-938.00</td><td class="num-col neg">-1737.35</td></tr>
+            <tr><td>银锭塘</td><td class="num-col pos">+1072.83</td><td class="num-col neg">-625.09</td><td class="num-col neg">-1697.92</td></tr>
+            <tr><td>时代花生</td><td class="num-col pos">+1000.66</td><td class="num-col neg">-567.80</td><td class="num-col neg">-1568.46</td></tr>
+            <tr><td>范屋村</td><td class="num-col pos">+834.00</td><td class="num-col neg">-701.18</td><td class="num-col neg">-1535.18</td></tr>
+            <tr><td>荔枝岗村</td><td class="num-col neg">-430.10</td><td class="num-col neg">-1823.94</td><td class="num-col neg">-1393.84</td></tr>
+            <tr><td>侨乐新村</td><td class="num-col pos">+1754.14</td><td class="num-col pos">+417.36</td><td class="num-col neg">-1336.78</td></tr>
+            <tr><td>兴华村</td><td class="num-col pos">+1321.50</td><td class="num-col pos">+60.80</td><td class="num-col neg">-1260.70</td></tr>
+            <tr><td>广工沙河校区</td><td class="num-col pos">+510.20</td><td class="num-col neg">-549.98</td><td class="num-col neg">-1060.18</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <div class="insight-box" style="margin-top:8px;border-left-color:#e65100;">
+        <div class="title">极端波动分析</div>
+        <p><strong>花生寮（-5169 → +5208）</strong>：4月拆机销户异常高导致极低分，5月拆机出现大额正向反冲（+3663），分数剧烈反弹。这种大幅波动说明该网格的拆机数据可能存在跨月集中结算或账期错位，建议核实具体原因。<br>
+        <strong>坑口新村（+1096 → -1113）</strong>：从4月的正净增冠军之一跌至5月垫底，5月拆机 -1265 远超新增 +129，属于典型的"增量断崖+流失暴增"。</p>
+      </div>
+    </div>
+
+    <!-- 二、各类型月度对比 -->
+    <div class="section">
+      <div class="section-title">📊 二、各类型月度对比（重叠网格）</div>
+      <table>
+        <tr>
+          <th>类型</th>
+          <th>4月合计</th><th>5月合计</th><th>环比变化</th>
+          <th>4月正/负</th><th>5月正/负</th>
+        </tr>
+        <tr>
+          <td>优惠到期</td>
+          <td class="num-col pos">+4308.74</td>
+          <td class="num-col pos">+2912.95</td>
+          <td class="num-col neg" style="color:#e65100;">-1395.79 ↓</td>
+          <td class="num-col">64 / 3</td>
+          <td class="num-col">46 / 5</td>
+        </tr>
+        <tr>
+          <td>存量变更</td>
+          <td class="num-col neg">-3992.51</td>
+          <td class="num-col neg">-3920.68</td>
+          <td class="num-col pos">+71.83</td>
+          <td class="num-col">33 / 59</td>
+          <td class="num-col">37 / 50</td>
+        </tr>
+        <tr style="background:#fff5f5;">
+          <td><strong>拆机销户</strong></td>
+          <td class="num-col neg"><strong>-38817.37</strong></td>
+          <td class="num-col neg"><strong>-25594.37</strong></td>
+          <td class="num-col pos"><strong>+13223.00 ↑↑</strong></td>
+          <td class="num-col">8 / 73</td>
+          <td class="num-col">6 / 71</td>
+        </tr>
+        <tr style="background:#fff8e1;">
+          <td>纯新套餐</td>
+          <td class="num-col pos"><strong>+30870.51</strong></td>
+          <td class="num-col pos"><strong>+19395.83</strong></td>
+          <td class="num-col neg"><strong>-11474.68 ↓↓</strong></td>
+          <td class="num-col">59 / 0</td>
+          <td class="num-col">49 / 0</td>
+        </tr>
+        <tr>
+          <td>存量加装</td>
+          <td class="num-col pos">+4687.22</td>
+          <td class="num-col pos">+6379.16</td>
+          <td class="num-col pos">+1691.94 ↑</td>
+          <td class="num-col">49 / 6</td>
+          <td class="num-col">63 / 4</td>
+        </tr>
+      </table>
+
+      <div class="grid-3" style="margin-top:16px;">
+        <div class="stat-card">
+          <h4>😊 好消息</h4>
+          <p style="font-size:13px;color:#37474f;line-height:1.7;">
+            ✅ 拆机销户环比 <strong>缩减 1.32 万</strong>（-38,817 → -25,594），流失速度大幅收窄<br>
+            ✅ 存量加装环比 <strong>增长 1,692</strong>（+4,687 → +6,379），加装活动明显增多<br>
+            ✅ 存量变更从 -3,993 改善至 -3,921，基本持平
+          </p>
+        </div>
+        <div class="stat-card">
+          <h4>😟 坏消息</h4>
+          <p style="font-size:13px;color:#37474f;line-height:1.7;">
+            ❌ 纯新套餐环比 <strong>下滑 1.15 万</strong>（+30,871 → +19,396），新增动力减弱<br>
+            ❌ 有纯新套餐的网格从 <strong>60 个降至 49 个</strong>，少了 11 个<br>
+            ❌ 优惠到期总额环比减少 <strong>1,396</strong>，有数据的网格从 67 个减至 51 个
+          </p>
+        </div>
+        <div class="stat-card">
+          <h4>核心判断</h4>
+          <p style="font-size:13px;color:#37474f;line-height:1.7;">
+            整体状况在<strong>改善但脆弱</strong>——拆机减少是好事，但新增同步下滑令人担忧。<br><br>
+            如果下个月新增继续下滑而拆机回升，整体净增可能再次恶化。<br><br>
+            需关注 <strong>11 个新增停摆的网格</strong>，它们从4月有新增变成5月无新增。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 三、纯新套餐变化 -->
+    <div class="section">
+      <div class="section-title">🔍 三、纯新套餐变化分析</div>
+      
+      <div class="grid-2">
+        <div class="stat-card">
+          <h4>4月有 → 5月无（新增停摆网格）</h4>
+          <div class="badge-list">
+            <span class="item" style="background:#fce4ec;">侨乐新村(4月+794→0)</span>
+            <span class="item" style="background:#fce4ec;">兴华村(+700→0)</span>
+            <span class="item" style="background:#fce4ec;">银锭塘(+587→0)</span>
+            <span class="item" style="background:#fce4ec;">沙东村(+543→0)</span>
+            <span class="item" style="background:#fce4ec;">银利新邨(+426→0)</span>
+            <span class="item" style="background:#fce4ec;">长腰岭(+320→0)</span>
+            <span class="item" style="background:#fce4ec;">冠庭园(+260→0)</span>
+            <span class="item" style="background:#fce4ec;">等共约 10 个网格</span>
+          </div>
+          <p style="font-size:12px;color:#c62828;margin-top:6px;">这些网格的净增从4月的正数跌至5月的负数或大幅下滑，新增断档是核心原因。</p>
+        </div>
+        <div class="stat-card">
+          <h4>4月无 → 5月有（新增启动网格）</h4>
+          <div class="badge-list">
+            <span class="item" style="background:#e8f5e9;">云泉路22号大院(0→+138)</span>
+            <span class="item" style="background:#e8f5e9;">云泉新村(+23→+199)</span>
+            <span class="item" style="background:#e8f5e9;">南蛇坑村(+89→+89)</span>
+            <span class="item" style="background:#e8f5e9;">广东省工程勘测院(0→+129)</span>
+            <span class="item" style="background:#e8f5e9;">天虹宾馆安居房(0→+129)</span>
+          </div>
+          <p style="font-size:12px;color:#2e7d32;margin-top:6px;">部分网格在5月启动了新增，弥补了部分流失缺口。但启动规模远小于停摆规模。</p>
+        </div>
+      </div>
+
+      <div class="insight-box" style="border-left-color:#2e7d32;background:#f1f8e9;margin-top:12px;">
+        <div class="title">纯新套餐健康度结论</div>
+        <p>4月有 59 个网格有纯新套餐增量，5月降至 49 个，减少了 <strong>10 个有新增的网格</strong>（降幅 17%）。<br>
+        这意味着新增覆盖范围在收窄，新增总量也从 +3.09 万降至 +1.94 万（降幅 37%）。<br>
+        如果下月新增进一步收窄，即便拆机量不再恶化，整体净增仍可能加速下滑。</p>
+      </div>
+    </div>
+
+    <!-- 四、5月净增排名 -->
+    <div class="section">
+      <div class="section-title">🏆 四、5月净增积分 TOP 10</div>
+      <table>
+        <tr><th>排名</th><th>网格名称</th><th>净增</th><th>4月排名</th><th>趋势</th><th>关键驱动力</th></tr>
+        <tr><td class="num-col">1</td><td>花生寮</td><td class="num-col pos">+5207.96</td><td class="num-col">103</td><td style="color:#2e7d32;">↑↑↑ 飙升</td><td>拆机反冲 +3663</td></tr>
+        <tr><td class="num-col">2</td><td>越秀天河和樾府</td><td class="num-col pos">+2749.60</td><td class="num-col">3</td><td style="color:#2e7d32;">↑ 上升</td><td>纯新套餐 +2505</td></tr>
+        <tr><td class="num-col">3</td><td>黄惊坳</td><td class="num-col pos">+591.45</td><td class="num-col">7</td><td style="color:#2e7d32;">↑ 上升</td><td>纯新套餐 +1656</td></tr>
+        <tr><td class="num-col">4</td><td>河水村</td><td class="num-col pos">+585.97</td><td class="num-col">101</td><td style="color:#2e7d32;">↑↑ 反弹</td><td>纯新套餐 +1870</td></tr>
+        <tr><td class="num-col">5</td><td>侨乐新村</td><td class="num-col pos">+417.36</td><td class="num-col">2</td><td style="color:#c62828;">↓ 下滑</td><td>存量加装 +133</td></tr>
+        <tr><td class="num-col">6</td><td>金贵村</td><td class="num-col pos">+348.67</td><td class="num-col">51</td><td style="color:#2e7d32;">↑ 上升</td><td>纯新套餐 +615</td></tr>
+        <tr><td class="num-col">7</td><td>天河山庄</td><td class="num-col pos">+300.00</td><td class="num-col">53</td><td style="color:#2e7d32;">↑ 上升</td><td>存量加装 +196</td></tr>
+        <tr><td class="num-col">8</td><td>省军区干休所</td><td class="num-col pos">+297.00</td><td class="num-col">43</td><td style="color:#2e7d32;">↑ 上升</td><td>均衡正向</td></tr>
+        <tr><td class="num-col">9</td><td>沙东富力大厦</td><td class="num-col pos">+278.00</td><td class="num-col">74</td><td style="color:#2e7d32;">↑ 上升</td><td>纯新套餐 +278</td></tr>
+        <tr><td class="num-col">10</td><td>牛利岗</td><td class="num-col pos">+264.48</td><td class="num-col">97</td><td style="color:#2e7d32;">↑ 反弹</td><td>纯新套餐 +1853（大进大出）</td></tr>
+      </table>
+    </div>
+
+    <!-- 五、5月净增 BOTTOM -->
+    <div class="section">
+      <div class="section-title">⚠️ 五、5月净增 BOTTOM 5</div>
+      <table>
+        <tr><th>排名</th><th>网格名称</th><th>净增</th><th>4月排名</th><th>趋势</th><th>核心问题</th></tr>
+        <tr><td class="num-col">99</td><td>范屋村</td><td class="num-col neg">-701.18</td><td class="num-col">12</td><td style="color:#c62828;">↓↓ 暴跌</td><td>拆机 -1037，新增不足覆盖</td></tr>
+        <tr><td class="num-col">100</td><td>金茂广场小区</td><td class="num-col neg">-715.74</td><td class="num-col">42</td><td style="color:#c62828;">↓↓ 暴跌</td><td>拆机 -854，纯新仅 +232</td></tr>
+        <tr><td class="num-col">101</td><td>广州大道北五仙桥</td><td class="num-col neg">-938.00</td><td class="num-col">10</td><td style="color:#c62828;">↓↓ 暴跌</td><td>拆机 -1476，新增腰斩</td></tr>
+        <tr><td class="num-col">102</td><td>坑口新村</td><td class="num-col neg">-1113.18</td><td class="num-col">4</td><td style="color:#c62828;">↓↓↓ 剧跌</td><td>4月 +1096 → 5月 -1113</td></tr>
+        <tr><td class="num-col">103</td><td>荔枝岗村</td><td class="num-col neg">-1823.94</td><td class="num-col">90</td><td style="color:#c62828;">↓↓ 持续恶化</td><td>拆机 -1664，零新增零加装</td></tr>
+      </table>
+      <div class="insight-box" style="border-left-color:#c62828;background:#fef2f2;margin-top:8px;">
+        <div class="title">排名震荡分析</div>
+        <p>4月排名第 4 的坑口新村（+1096）5月跌至第 102 名（-1113），波动高达 106 位。<br>
+        排名前 10 的网格在 5 月有 4 个跌出前 50，说明头部网格的稳定性较差，净增高度依赖当月的短期新增行为而非持续经营。</p>
+      </div>
+    </div>
+
+    <!-- 六、持续性问题 -->
+    <div class="section">
+      <div class="section-title">🔄 六、持续关注网格</div>
+      <table>
+        <tr><th>网格</th><th>4月净增</th><th>5月净增</th><th>两月合计</th><th>状态</th></tr>
+        <tr style="background:#e8f5e9;">
+          <td>越秀天河和樾府</td><td class="num-col pos">+1922.67</td><td class="num-col pos">+2749.60</td><td class="num-col pos">+4672.27</td><td>🏆 双月冠军，持续优秀</td></tr>
+        <tr style="background:#e8f5e9;">
+          <td>省文化厅宿舍</td><td class="num-col pos">+256.11</td><td class="num-col pos">+215.79</td><td class="num-col pos">+471.90</td><td>✅ 连续两月正净增</td></tr>
+        <tr style="background:#e8f5e9;">
+          <td>永福正街</td><td class="num-col pos">+420.60</td><td class="num-col pos">+402.25</td><td class="num-col pos">+822.85</td><td>✅ 连续两月正净增</td></tr>
+        <tr style="background:#fce4ec;">
+          <td>荔枝岗村</td><td class="num-col neg">-430.10</td><td class="num-col neg">-1823.94</td><td class="num-col neg">-2254.04</td><td>🔴 双月垫底，持续恶化</td></tr>
+        <tr style="background:#fce4ec;">
+          <td>广工沙河校区</td><td class="num-col pos">+510.20</td><td class="num-col neg">-549.98</td><td class="num-col neg">-39.78</td><td>⚠️ 从正转负，需关注</td></tr>
+        <tr style="background:#fff8e1;">
+          <td>广州大道北五仙桥</td><td class="num-col pos">+799.35</td><td class="num-col neg">-938.00</td><td class="num-col neg">-138.65</td><td>⚠️ 从正转负，大幅下滑</td></tr>
+      </table>
+    </div>
+
+    <!-- 七、小结 -->
+    <div class="section">
+      <hr>
+      <div class="section-title">📝 月度对比小结</div>
+      <div class="grid-2">
+        <div class="stat-card">
+          <h4>向好信号</h4>
+          <p style="font-size:13px;color:#37474f;line-height:1.7;">
+            ✅ 拆机销户总额从 -3.88 万缩减至 -2.56 万，改善 <strong>+1.32 万</strong><br>
+            ✅ 存量加装从 +4,687 增至 +6,379，增长 36%<br>
+            ✅ 存量变更正负比从 33/59 改善至 37/50<br>
+            ✅ 花生寮、河水村等极端负值网格大幅反弹
+          </p>
+        </div>
+        <div class="stat-card">
+          <h4>警惕信号</h4>
+          <p style="font-size:13px;color:#37474f;line-height:1.7;">
+            ❌ 纯新套餐从 +3.09 万降至 +1.94 万，减少 37%<br>
+            ❌ 有新增的网格从 60 个减至 49 个，减少 11 个<br>
+            ❌ 多个 4 月排名靠前的网格（坑口、侨乐、沙东）5 月大幅下滑<br>
+            ❌ 排名剧烈波动，缺乏持续稳定的高产网格
+          </p>
+        </div>
+      </div>
+      <div class="insight-box" style="margin-top:16px;background:#e8eaf6;border-left-color:#1a237e;">
+        <div class="title">综合判断</div>
+        <p>4 → 5 月整体是<strong>"止血但不造血"</strong>的格局——拆机流失在收窄，但新增动力也在同步衰减。<br>
+        整体净增从 -4,361 改善至 -1,259，方向是对的，但改善质量不够扎实。<br>
+        下一步应重点关注：<strong>①</strong> 10 个新增停摆网格的拓新恢复；<strong>②</strong> 荔枝岗村、坑口新村等垫底网格的专项帮扶；<strong>③</strong> 跟踪越秀天河和樾府、省文化厅宿舍等持续优秀网格的经验复制。</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toolbar" style="max-width:960px;margin:16px auto 0;display:flex;justify-content:flex-end;">
+  <button class="btn-save" id="saveBtn" onclick="saveAsImage()" style="display:inline-flex;align-items:center;gap:6px;padding:10px 22px;background:linear-gradient(135deg,#1a237e,#3949ab);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(26,35,126,0.25);">
+    <span class="spinner" style="display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;"></span>
+    <span class="label-text">📷 保存为长图</span>
+  </button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btn-save.loading .spinner{display:inline-block}
+  .btn-save.loading .label-text{display:none}
+  @media print{.toolbar{display:none}}
+</style>
+<script>
+async function saveAsImage(){
+  const btn=document.getElementById("saveBtn");
+  const area=document.querySelector(".page");
+  btn.classList.add("loading");btn.disabled=true;
+  try{
+    const canvas=await html2canvas(area,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false,width:area.scrollWidth,height:area.scrollHeight,windowWidth:area.scrollWidth,windowHeight:area.scrollHeight});
+    const link=document.createElement("a");link.download="网格数据分析报告.png";link.href=canvas.toDataURL("image/png");link.click();
+  }catch(e){alert("生成失败："+e.message)}
+  finally{btn.classList.remove("loading");btn.disabled=false}
+}
+</script>
+
+</body>
+</html>
