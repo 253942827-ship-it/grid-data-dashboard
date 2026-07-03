@@ -17,7 +17,7 @@ OUTPUT_DIR = os.path.join(PROJ_DIR, "docs")
 # ============================================================
 print("1. 读取人员基础信息...")
 import json
-_pf = os.path.join(DATA_DIR, "personnel.json")
+_pf = os.path.join(DATA_DIR, "tangxia_personnel.json")
 with open(_pf, 'r', encoding='utf-8') as _f:
     _pd = json.load(_f)
 data_date = _pd['data_date']
@@ -368,7 +368,7 @@ html = f'''<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>沙太人员工作看板 - {data_date[:7]}</title>
+<title>棠下人员工作看板 - {data_date[:7]}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 *{{margin:0;padding:0;box-sizing:border-box}}
@@ -441,7 +441,7 @@ function switchMainTab(i){{
 <body>
 <div class="page">
 <div class="topbar">
-  <h1>📊 沙太人员工作看板</h1>
+  <h1>📊 棠下人员工作看板</h1>
   <div class="meta"><span>📅 {data_date[:7]}</span><span>👤 {len(personnel)} 人</span></div>
   <div class="date-status" style="width:100%;font-size:10px;color:rgba(255,255,255,.7);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;">
     📡 {_date_status}
@@ -982,13 +982,13 @@ _js = _MGMT_TPL
 _js = _js.replace('var BASE_DATA = [];', 'var BASE_DATA = ' + base_data_json + ';')
 html += _js
 html += f'''
-<div class="footer">沙太人员工作看板 · {data_date[:7]} · 数据源: 6月清单</div>
+<div class="footer">棠下人员工作看板 · {data_date[:7]} · 数据源: 6月清单</div>
 </div>
 </body>
 </html>'''
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-outpath = os.path.join(OUTPUT_DIR, "dashboard.html")
+outpath = os.path.join(OUTPUT_DIR, "tangxia_dashboard.html")
 with open(outpath, 'w', encoding='utf-8') as f:
     f.write(html)
 
