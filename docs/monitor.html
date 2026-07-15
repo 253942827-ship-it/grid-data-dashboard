@@ -771,8 +771,12 @@ function switchTab(i,n){
 
 function filterTable(proj){
   var q = document.getElementById('search_'+proj).value;
-  var activeFilter = document.querySelector('#tab-'+proj+' .filter-btn.active');
-  var filterVal = activeFilter ? activeFilter.getAttribute('data-filter') || 'all' : 'all';
+  var filterVal = 'all';
+  document.querySelectorAll('#tab-'+proj+' .filter-btn').forEach(function(b){
+    if(b.classList.contains('active')||b.classList.contains('active-green')||b.classList.contains('active-orange')||b.classList.contains('active-red')){
+      filterVal = b.getAttribute('data-filter')||'all';
+    }
+  });
   document.querySelectorAll('#tbody_'+proj+' tr').forEach(function(r){
     var textMatch = !q || r.textContent.includes(q);
     var statusMatch = filterVal === 'all' || r.getAttribute('data-status') === filterVal;
@@ -781,12 +785,14 @@ function filterTable(proj){
 }
 
 function setFilter(proj, val){
-  var btns = document.querySelectorAll('#tab-'+proj+' .filter-btn');
-  btns.forEach(function(b){b.classList.remove('active','active-green','active-orange','active-red'); b.setAttribute('data-filter','all')});
+  document.querySelectorAll('#tab-'+proj+' .filter-btn').forEach(function(b){
+    b.classList.remove('active','active-green','active-orange','active-red');
+    b.setAttribute('data-filter','all');
+  });
   var btn = document.getElementById('filt_'+val+'_'+proj);
   if(btn){
     var colorClass = val === '在用' ? 'active-green' : (val === '停机' ? 'active-orange' : (val === 'other' ? 'active-red' : 'active'));
-    btn.classList.add(colorClass);
+    btn.classList.add('active', colorClass);
     btn.setAttribute('data-filter', val === 'other' ? 'other' : val);
   }
   filterTable(proj);
