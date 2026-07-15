@@ -91,7 +91,7 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <div class="panel">
 <div class="panel-title">📈 状态演变趋势（T+0 ~ T+12）</div>
 <div class="chart-box"><canvas id="trendChart"></canvas></div>
-<div class="load-info">T+0 = 入网当月 · 数据来源: 花生寮.xlsx + 合神鸿辉公寓.xlsx</div>
+<div class="load-info">T+0 = 入网当月</div>
 </div>
 
 <div class="tab-bar">
@@ -115,10 +115,10 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <div class="filter-bar">
   <input type="text" id="search_花生寮" oninput="filterTable('花生寮')" placeholder="🔍 搜索号码/揽装人/宽带...">
   <span style="font-size:11px;color:#888;margin-left:4px">状态筛选:</span>
-  <button class="filter-btn sel" id="fb_all_花生寮" onclick="return setFilter('花生寮','all')">全部 (504)</button>
-  <button class="filter-btn" id="fb_inuse_花生寮" onclick="return setFilter('花生寮','在用')">在用 (283)</button>
-  <button class="filter-btn" id="fb_stop_花生寮" onclick="return setFilter('花生寮','停机')">停机 (221)</button>
-  <button class="filter-btn" id="fb_other_花生寮" onclick="return setFilter('花生寮','other')">其他 (0)</button>
+  <button class="filter-btn sel" id="fb_all_花生寮" onclick="setFilter('花生寮','all')">全部 (504)</button>
+  <button class="filter-btn" id="fb_inuse_花生寮" onclick="setFilter('花生寮','在用')">在用 (283)</button>
+  <button class="filter-btn" id="fb_stop_花生寮" onclick="setFilter('花生寮','停机')">停机 (221)</button>
+  <button class="filter-btn" id="fb_other_花生寮" onclick="setFilter('花生寮','other')">其他 (0)</button>
 </div><div class="tbl-compact"><table><thead><tr><th style="position:sticky;left:0;z-index:3;background:#e8eaf6">#</th><th style="position:sticky;left:25px;z-index:3;background:#e8eaf6">号码</th><th style="position:sticky;left:100px;z-index:3;background:#e8eaf6">揽装人</th><th>入网</th><th>T月</th><th>最新状态</th><th>价值积分</th><th>加载时间</th><th>T+0</th><th>T+1</th><th>T+2</th><th>T+3</th><th>T+4</th><th>T+5</th><th>T+6</th><th>T+7</th><th>T+8</th><th>T+9</th><th>T+10</th><th>T+11</th><th>T+12</th></tr></thead><tbody id="tbody_{p}">
 <tr data-status="停机"><td style="position:sticky;left:0;z-index:2;background:#fff">1</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>19128255725</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">潘晨光</td><td>2025-05-01</td><td>25年5月</td><td><span class="tag red-bg">停机</span></td><td class="tr" style="font-weight:400;color:#999">199</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td></tr>
 <tr data-status="停机"><td style="position:sticky;left:0;z-index:2;background:#fff">2</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>19128256302</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">潘晨光</td><td>2025-05-01</td><td>25年5月</td><td><span class="tag red-bg">停机</span></td><td class="tr" style="font-weight:400;color:#999">199</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td></tr>
@@ -634,10 +634,10 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <div class="filter-bar">
   <input type="text" id="search_鸿辉" oninput="filterTable('鸿辉')" placeholder="🔍 搜索号码/揽装人/宽带...">
   <span style="font-size:11px;color:#888;margin-left:4px">状态筛选:</span>
-  <button class="filter-btn sel" id="fb_all_鸿辉" onclick="return setFilter('鸿辉','all')">全部 (52)</button>
-  <button class="filter-btn" id="fb_inuse_鸿辉" onclick="return setFilter('鸿辉','在用')">在用 (52)</button>
-  <button class="filter-btn" id="fb_stop_鸿辉" onclick="return setFilter('鸿辉','停机')">停机 (0)</button>
-  <button class="filter-btn" id="fb_other_鸿辉" onclick="return setFilter('鸿辉','other')">其他 (0)</button>
+  <button class="filter-btn sel" id="fb_all_鸿辉" onclick="setFilter('鸿辉','all')">全部 (52)</button>
+  <button class="filter-btn" id="fb_inuse_鸿辉" onclick="setFilter('鸿辉','在用')">在用 (52)</button>
+  <button class="filter-btn" id="fb_stop_鸿辉" onclick="setFilter('鸿辉','停机')">停机 (0)</button>
+  <button class="filter-btn" id="fb_other_鸿辉" onclick="setFilter('鸿辉','other')">其他 (0)</button>
 </div><div class="tbl-compact"><table><thead><tr><th style="position:sticky;left:0;z-index:3;background:#e8eaf6">#</th><th style="position:sticky;left:25px;z-index:3;background:#e8eaf6">号码</th><th style="position:sticky;left:100px;z-index:3;background:#e8eaf6">揽装人</th><th>入网</th><th>T月</th><th>最新状态</th><th>价值积分</th><th>加载时间</th><th>T+0</th><th>T+1</th><th>T+2</th><th>T+3</th><th>T+4</th><th>T+5</th><th>T+6</th><th>T+7</th><th>T+8</th><th>T+9</th><th>T+10</th><th>T+11</th><th>T+12</th></tr></thead><tbody id="tbody_{p}">
 <tr data-status="在用"><td style="position:sticky;left:0;z-index:2;background:#fff">1</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>17724026291</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-05-15</td><td>26年5月</td><td><span class="tag green">在用</span></td><td class="tr" style="font-weight:600;color:#6a1b9a">59</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
 <tr data-status="在用"><td style="position:sticky;left:0;z-index:2;background:#fff">2</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>19120410252</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-05-19</td><td>26年5月</td><td><span class="tag green">在用</span></td><td class="tr" style="font-weight:600;color:#6a1b9a">59</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
@@ -701,10 +701,10 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <div class="filter-bar">
   <input type="text" id="search_合神" oninput="filterTable('合神')" placeholder="🔍 搜索号码/揽装人/宽带...">
   <span style="font-size:11px;color:#888;margin-left:4px">状态筛选:</span>
-  <button class="filter-btn sel" id="fb_all_合神" onclick="return setFilter('合神','all')">全部 (21)</button>
-  <button class="filter-btn" id="fb_inuse_合神" onclick="return setFilter('合神','在用')">在用 (14)</button>
-  <button class="filter-btn" id="fb_stop_合神" onclick="return setFilter('合神','停机')">停机 (7)</button>
-  <button class="filter-btn" id="fb_other_合神" onclick="return setFilter('合神','other')">其他 (0)</button>
+  <button class="filter-btn sel" id="fb_all_合神" onclick="setFilter('合神','all')">全部 (21)</button>
+  <button class="filter-btn" id="fb_inuse_合神" onclick="setFilter('合神','在用')">在用 (14)</button>
+  <button class="filter-btn" id="fb_stop_合神" onclick="setFilter('合神','停机')">停机 (7)</button>
+  <button class="filter-btn" id="fb_other_合神" onclick="setFilter('合神','other')">其他 (0)</button>
 </div><div class="tbl-compact"><table><thead><tr><th style="position:sticky;left:0;z-index:3;background:#e8eaf6">#</th><th style="position:sticky;left:25px;z-index:3;background:#e8eaf6">号码</th><th style="position:sticky;left:100px;z-index:3;background:#e8eaf6">揽装人</th><th>入网</th><th>T月</th><th>最新状态</th><th>价值积分</th><th>加载时间</th><th>T+0</th><th>T+1</th><th>T+2</th><th>T+3</th><th>T+4</th><th>T+5</th><th>T+6</th><th>T+7</th><th>T+8</th><th>T+9</th><th>T+10</th><th>T+11</th><th>T+12</th></tr></thead><tbody id="tbody_{p}">
 <tr data-status="在用"><td style="position:sticky;left:0;z-index:2;background:#fff">1</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>15302237598</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">陈敏飞</td><td>2026-01-05</td><td>26年1月</td><td><span class="tag green">在用</span></td><td class="tr" style="font-weight:600;color:#6a1b9a">79</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
 <tr data-status="停机"><td style="position:sticky;left:0;z-index:2;background:#fff">2</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>13316202441</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">陈梓城</td><td>2026-03-10</td><td>26年3月</td><td><span class="tag red-bg">停机</span></td><td class="tr" style="font-weight:400;color:#999">62</td><td class="small">2026-07-06</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
@@ -737,10 +737,10 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <div class="filter-bar">
   <input type="text" id="search_冠均" oninput="filterTable('冠均')" placeholder="🔍 搜索号码/揽装人/宽带...">
   <span style="font-size:11px;color:#888;margin-left:4px">状态筛选:</span>
-  <button class="filter-btn sel" id="fb_all_冠均" onclick="return setFilter('冠均','all')">全部 (9)</button>
-  <button class="filter-btn" id="fb_inuse_冠均" onclick="return setFilter('冠均','在用')">在用 (4)</button>
-  <button class="filter-btn" id="fb_stop_冠均" onclick="return setFilter('冠均','停机')">停机 (5)</button>
-  <button class="filter-btn" id="fb_other_冠均" onclick="return setFilter('冠均','other')">其他 (0)</button>
+  <button class="filter-btn sel" id="fb_all_冠均" onclick="setFilter('冠均','all')">全部 (9)</button>
+  <button class="filter-btn" id="fb_inuse_冠均" onclick="setFilter('冠均','在用')">在用 (4)</button>
+  <button class="filter-btn" id="fb_stop_冠均" onclick="setFilter('冠均','停机')">停机 (5)</button>
+  <button class="filter-btn" id="fb_other_冠均" onclick="setFilter('冠均','other')">其他 (0)</button>
 </div><div class="tbl-compact"><table><thead><tr><th style="position:sticky;left:0;z-index:3;background:#e8eaf6">#</th><th style="position:sticky;left:25px;z-index:3;background:#e8eaf6">号码</th><th style="position:sticky;left:100px;z-index:3;background:#e8eaf6">揽装人</th><th>入网</th><th>T月</th><th>最新状态</th><th>价值积分</th><th>加载时间</th><th>T+0</th><th>T+1</th><th>T+2</th><th>T+3</th><th>T+4</th><th>T+5</th><th>T+6</th><th>T+7</th><th>T+8</th><th>T+9</th><th>T+10</th><th>T+11</th><th>T+12</th></tr></thead><tbody id="tbody_{p}">
 <tr data-status="停机"><td style="position:sticky;left:0;z-index:2;background:#fff">1</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>13316029319</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-04-09</td><td>26年4月</td><td><span class="tag red-bg">停机</span></td><td class="tr" style="font-weight:400;color:#999">399</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
 <tr data-status="停机"><td style="position:sticky;left:0;z-index:2;background:#fff">2</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>18102236519</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-04-09</td><td>26年4月</td><td><span class="tag red-bg">停机</span></td><td class="tr" style="font-weight:400;color:#999">399</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td><span class="tag red-bg" style="font-size:8px;padding:1px 3px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
@@ -752,15 +752,8 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <tr data-status="在用"><td style="position:sticky;left:0;z-index:2;background:#fff">8</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>15360869269</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-06-12</td><td>26年6月</td><td><span class="tag green">在用</span></td><td class="tr" style="font-weight:600;color:#6a1b9a">319</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
 <tr data-status="在用"><td style="position:sticky;left:0;z-index:2;background:#fff">9</td><td style="position:sticky;left:25px;z-index:2;background:#fff"><b>15360026769</b></td><td style="position:sticky;left:100px;z-index:2;background:#fff">黄敏慧</td><td>2026-06-12</td><td>26年6月</td><td><span class="tag green">在用</span></td><td class="tr" style="font-weight:600;color:#6a1b9a">319</td><td class="small">2026-07-06</td><td class="small">—</td><td><span class="tag green" style="font-size:8px;padding:1px 3px">在用</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td></tr>
 </tbody></table></div></div></div></div><script>
-new Chart(document.getElementById('trendChart'), {
-  type:'line',
-  data:{labels:["T+0", "T+1", "T+2", "T+3", "T+4", "T+5", "T+6", "T+7", "T+8", "T+9", "T+10", "T+11", "T+12"],datasets:[
-    {label:'在用',data:[4, 574, 490, 344, 280, 291, 311, 231, 163, 193, 201, 152, 109],borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,.08)',fill:true,tension:.3,pointRadius:3},
-    {label:'停机',data:[0, 8, 7, 104, 120, 102, 78, 140, 196, 162, 145, 182, 161],borderColor:'#e65100',backgroundColor:'rgba(230,81,0,.08)',fill:true,tension:.3,pointRadius:3},
-    {label:'其他',data:[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],borderColor:'#c62828',backgroundColor:'rgba(198,40,40,.08)',fill:true,tension:.3,pointRadius:3}
-  ]},
-  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
-});
+// ===== 工具函数（定义在Chart之前，确保即使Chart加载失败也不影响功能）=====
+var filterVals = {};
 
 function switchTab(i,n){
   document.querySelectorAll('.tab-panel,.tab-btn').forEach(function(e){e.classList.remove('active')});
@@ -768,19 +761,14 @@ function switchTab(i,n){
   document.querySelectorAll('.tab-btn')[i].classList.add('active');
 }
 
-var filterVals = {};
 function setFilter(proj, val){
   filterVals[proj] = val;
-  var prefix = 'fb_';
-  var classMap = {'all':'sel','在用':'sel-green','停机':'sel-orange','other':'sel-red'};
+  var cm = {'all':'sel','在用':'sel-green','停机':'sel-orange','other':'sel-red'};
   var btns = document.querySelectorAll('#tab-'+proj+' .filter-btn');
-  for(var i=0;i<btns.length;i++){
-    btns[i].className = 'filter-btn';
-  }
-  var btn = document.getElementById(prefix+val+'_'+proj);
-  if(btn){btn.classList.add(classMap[val]||'sel');}
+  for(var i=0;i<btns.length;i++){btns[i].className = 'filter-btn';}
+  var btn = document.getElementById('fb_'+val+'_'+proj);
+  if(btn){btn.classList.add(cm[val]||'sel');}
   filterTable(proj);
-  return false;
 }
 
 function filterTable(proj){
@@ -794,5 +782,18 @@ function filterTable(proj){
     r.style.display = (textOk && statusOk) ? '' : 'none';
   }
 }
+
+// ===== Chart.js 初始化（使用try-catch避免CDN加载失败阻塞功能）=====
+try {
+  new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{labels:["T+0", "T+1", "T+2", "T+3", "T+4", "T+5", "T+6", "T+7", "T+8", "T+9", "T+10", "T+11", "T+12"],datasets:[
+      {label:'在用',data:[4, 574, 490, 344, 280, 291, 311, 231, 163, 193, 201, 152, 109],borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,.08)',fill:true,tension:.3,pointRadius:3},
+      {label:'停机',data:[0, 8, 7, 104, 120, 102, 78, 140, 196, 162, 145, 182, 161],borderColor:'#e65100',backgroundColor:'rgba(230,81,0,.08)',fill:true,tension:.3,pointRadius:3},
+      {label:'其他',data:[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],borderColor:'#c62828',backgroundColor:'rgba(198,40,40,.08)',fill:true,tension:.3,pointRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+} catch(e){}
 </script>
 </body></html>
