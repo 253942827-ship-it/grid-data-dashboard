@@ -780,8 +780,7 @@ td{padding:3px 4px;text-align:center;border-bottom:1px solid #f0f0f0;white-space
 <tr data-alert="T+2"><td>1</td><td><b>13316123951</b></td><td>黄敏慧</td><td>2026-05-10</td><td>26年5月</td><td><span class="tag red-bg">停机</span></td><td class="tr">59</td><td><span class="tag green" style="font-size:9px;padding:1px 4px">在用</span></td><td style="background:#ffe6e6;font-weight:600"><span class="tag red-bg" style="font-size:9px;padding:1px 4px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td><span class="alert-tag alert-t2">T+2异常</span></td></tr>
 <tr data-alert="T+2"><td>2</td><td><b>13316038790</b></td><td>黄敏慧</td><td>2026-05-10</td><td>26年5月</td><td><span class="tag red-bg">停机</span></td><td class="tr">59</td><td><span class="tag green" style="font-size:9px;padding:1px 4px">在用</span></td><td style="background:#ffe6e6;font-weight:600"><span class="tag red-bg" style="font-size:9px;padding:1px 4px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td><span class="alert-tag alert-t2">T+2异常</span></td></tr>
 <tr data-alert="T+2"><td>3</td><td><b>13312871591</b></td><td>黄敏慧</td><td>2026-05-10</td><td>26年5月</td><td><span class="tag red-bg">停机</span></td><td class="tr">59</td><td><span class="tag green" style="font-size:9px;padding:1px 4px">在用</span></td><td style="background:#ffe6e6;font-weight:600"><span class="tag red-bg" style="font-size:9px;padding:1px 4px">停机</span></td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td class="small">—</td><td><span class="alert-tag alert-t2">T+2异常</span></td></tr>
-</tbody></table></div></div></div><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script>
+</tbody></table></div></div></div><script>
 // ===== 项目筛选 =====
 function filterProj(btn, proj, val){
   var clss={'all':'sel','\u5728\u7528':'sel-green','\u505c\u673a':'sel-orange','other':'sel-red'};
@@ -850,8 +849,9 @@ function searchAlert(proj){
     r.style.display=(!q||r.textContent.indexOf(q)>=0)&&(val==='all'||r.getAttribute('data-alert')===val)?'':'none';
   }
 }
-
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
 // ===== Chart.js =====
 try{new Chart(document.getElementById('trendChart'),{type:'line',data:{labels:["T+0", "T+1", "T+2", "T+3", "T+4", "T+5", "T+6", "T+7", "T+8", "T+9", "T+10", "T+11", "T+12"],datasets:[{label:'\u5728\u7528',data:[4, 574, 490, 344, 280, 291, 311, 231, 163, 193, 201, 152, 109],borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,.08)',fill:true,tension:.3,pointRadius:3},{label:'\u505c\u673a',data:[0, 8, 7, 104, 120, 102, 78, 140, 196, 162, 145, 182, 161],borderColor:'#e65100',backgroundColor:'rgba(230,81,0,.08)',fill:true,tension:.3,pointRadius:3},{label:'\u5176\u4ed6',data:[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],borderColor:'#c62828',backgroundColor:'rgba(198,40,40,.08)',fill:true,tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});}catch(e){}
 </script>
-</body></html>
