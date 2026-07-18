@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}订单管理 - 宽带分销系统{% endblock %}
+{% block content %}
+<style>
+.order-table td,.order-table th{font-size:11px;padding:5px 4px;white-space:nowrap}
+.order-table .hl-name{font-weight:500;color:#1a237e}
+.tbl-wrap{overflow-x:auto;max-height:70vh}
+</style>
+<div class="topbar"><h1>📋 订单管理</h1>
+<div>
+<button class="btn btn-primary btn-sm" onclick="openModal('addOrderModal')"><i class="fas fa-plus"></i> 新增订单</button>
+<button class="btn btn-success btn-sm" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> 批量导入</button>
+<input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="batchImport(this)">
+</div></div>
+<div class="card">
+<div class="tbl-wrap">
+<table class="order-table">
+<thead><tr>
+<th>日期</th><th>下单渠道</th><th>下单方式</th><th>客户姓名</th><th>套餐价值</th>
+<th>宽带接入号</th><th>主卡</th><th>副卡-1</th><th>副卡-2</th>
+<th>身份证号</th><th>订单编码</th><th>安装地址</th><th>状态</th><th>快递单号</th><th>联系电话</th>
+</tr></thead>
+<tbody>{% for o in orders %}
+<tr>
+<td>{{ o.order_date or '--' }}</td>
+<td>{{ o.order_channel or '--' }}</td>
+<td>{{ o.order_method or '--' }}</td>
+<td class="hl-name">{{ o.customer_name or '--' }}</td>
+<td class="tr">{{ o.package_value }}</td>
+<td>{{ o.broadband_no or '--' }}</td>
+<td>{{ o.main_card or '--' }}</td>
+<td>{{ o.sub_card_1 or '--' }}</td>
+<td>{{ o.sub_card_2 or '--' }}</td>
+<td>{{ o.id_number or '--' }}</td>
+<td>{{ o.order_code or '--' }}</td>
+<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">{{ o.install_address or '--' }}</td>
+<td><span class="tag tag-{{ o.order_status }}">{{ o.order_status }}</span></td>
+<td>{{ o.express_no or '--' }}</td>
+<td>{{ o.contact_phone or '--' }}</td>
+</tr>
+{% else %}<tr><td colspan="15" style="text-align:center;color:#999">暂无订单</td></tr>
+{% endfor %}</tbody></table></div></div>
+
+<div class="modal-overlay" id="addOrderModal">
+<div class="modal" style="max-width:700px"><h2>📝 新增订单</h2>
+<form id="orderForm" onsubmit="event.preventDefault();submitOrder()">
+<div class="form-row">
+<div class="form-group"><label>日期</label><input name="order_date" type="date"></div>
+<div class="form-group"><label>下单渠道</label><input name="order_channel" placeholder="如：线上/渠道商"></div>
+<div class="form-group"><label>下单方式</label><input name="order_method" placeholder="如：自营/代理"></div></div>
+<div class="form-row">
+<div class="form-group"><label>客户姓名</label><input name="customer_name"></div>
+<div class="form-group"><label>联系电话</label><input name="contact_phone" type="tel"></div>
+<div class="form-group"><label>套餐价值(元)</label><input name="package_value" type="number" step="0.01"></div></div>
+<div class="form-row">
+<div class="form-group"><label>宽带接入号</label><input name="broadband_no"></div>
+<div class="form-group"><label>主卡</label><input name="main_card"></div>
+<div class="form-group"><label>副卡-1</label><input name="sub_card_1"></div></div>
+<div class="form-row">
+<div class="form-group"><label>副卡-2</label><input name="sub_card_2"></div>
+<div class="form-group"><label>身份证号</label><input name="id_number"></div>
+<div class="form-group"><label>订单编码 *</label><input name="order_code" required></div></div>
+<div class="form-group"><label>安装地址</label><input name="install_address" style="width:100%"></div>
+<div class="form-row">
+<div class="form-group"><label>快递单号</label><input name="express_no"></div>
+<div class="form-group"><label>渠道</label>
+<select name="channel_id"><option value="">--</option>{% for c in channels %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div></div>
+<button class="btn btn-primary">提交</button>
+<button class="btn" style="margin-top:8px;background:#eee" onclick="closeModal('addOrderModal')">取消</button>
+</form></div></div>
+<script>
+function submitOrder(){
+  var f = document.getElementById('orderForm');
+  var d = new FormData(f);
+  fetch('/orders/add',{method:'POST',body:d}).then(function(r){return r.json()}).then(function(j){
+    if(j.ok){showToast('订单添加成功','success');location.reload()}
+    else showToast(j.error,'error');
+  });
+}
+function batchImport(input){
+  var f = new FormData(); f.append('file', input.files[0]);
+  fetch('/orders/batch-import',{method:'POST',body:f}).then(function(r){return r.json()}).then(function(j){
+    if(j.ok) showToast('导入成功: '+j.imported+' 条, 跳过重复: '+j.skipped+' 条','success');
+    else showToast(j.error,'error');
+    if(j.ok) setTimeout(function(){location.reload()},1000);
+  });
+}
+</script>
+{% endblock %}

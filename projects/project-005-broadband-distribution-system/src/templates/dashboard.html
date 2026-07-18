@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}总览仪表盘 - 宽带分销系统{% endblock %}
+{% block content %}
+<div class="topbar"><h1>📊 总览仪表盘</h1><span class="role-badge">{{ session.name }} ({{ session.role }})</span></div>
+<div class="grid-4">
+<div class="stat-card"><div class="num">{{ order_count }}</div><div class="label">总订单数</div></div>
+<div class="stat-card"><div class="num">{{ channel_count }}</div><div class="label">活跃渠道</div></div>
+<div class="stat-card"><div class="num" style="color:#e65100">{{ settle_count }}</div><div class="label">待结算</div></div>
+</div>
+<div class="card"><div class="card-title">📋 最近订单</div>
+<table><thead><tr><th>业务号</th><th>渠道</th><th>客户</th><th>套餐</th><th>金额</th><th>状态</th><th>录入时间</th></tr></thead>
+<tbody>{% for o in recent_orders %}
+<tr><td>{{ o.business_no }}</td><td>{{ o.channel_name or '--' }}</td><td>{{ o.customer_name or '--' }}</td>
+<td>{{ o.package_name or '--' }}</td><td>{{ o.amount }}</td>
+<td><span class="tag tag-{{ o.status }}">{{ o.status }}</span></td>
+<td>{{ o.created_at[:10] }}</td></tr>
+{% else %}<tr><td colspan="7" style="text-align:center;color:#999">暂无数据</td></tr>
+{% endfor %}</tbody></table></div>
+{% endblock %}

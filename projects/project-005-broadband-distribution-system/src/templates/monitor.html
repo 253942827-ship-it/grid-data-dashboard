@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}监控看板 - 宽带分销系统{% endblock %}
+{% block content %}
+<div class="topbar"><h1>📈 订单月度监控</h1>
+<form method="GET" style="display:flex;gap:8px;align-items:center">
+<input name="month" type="month" value="{{ month }}" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+</form></div>
+<div class="card">
+<table><thead><tr><th>渠道</th><th>总订单数</th><th>存活订单</th><th>活跃订单</th><th>存活率</th><th>活跃率</th><th>总收入</th></tr></thead>
+<tbody>{% for s in stats %}
+<tr><td>{{ s.channel_name }}</td><td>{{ s.total_orders }}</td><td>{{ s.alive_count }}</td><td>{{ s.active_count }}</td>
+<td>{% if s.total_orders>0 %}{{ (s.alive_count/s.total_orders*100)|int }}%{% else %}--{% endif %}</td>
+<td>{% if s.total_orders>0 %}{{ (s.active_count/s.total_orders*100)|int }}%{% else %}--{% endif %}</td>
+<td>{{ '%.2f'|format(s.total_revenue) }}</td></tr>
+{% else %}<tr><td colspan="7" style="text-align:center;color:#999">暂无监控数据</td></tr>
+{% endfor %}</tbody></table></div>
+{% endblock %}

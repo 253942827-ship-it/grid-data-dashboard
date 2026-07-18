@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}佣金管理 - 宽带分销系统{% endblock %}
+{% block content %}
+<div class="topbar"><h1>💵 佣金管理</h1>
+<button class="btn btn-primary btn-sm" onclick="openModal('retroModal')"><i class="fas fa-redo"></i> 佣金回溯</button></div>
+<div class="card">
+<table><thead><tr><th>业务号</th><th>渠道</th><th>回现金额</th><th>回溯金额</th><th>回溯规则</th><th>状态</th><th>处理时间</th></tr></thead>
+<tbody>{% for c in commissions %}
+<tr><td>{{ c.order_code }}</td><td>{{ c.channel_name or '--' }}</td>
+<td>{{ c.cashback_amount }}</td><td>{{ c.retro_amount }}</td>
+<td>{{ c.retro_rule or '--' }}</td>
+<td><span class="tag tag-{{ c.status }}">{{ c.status }}</span></td>
+<td>{{ c.processed_at or '--' }}</td></tr>
+{% else %}<tr><td colspan="7" style="text-align:center;color:#999">暂无佣金数据</td></tr>
+{% endfor %}</tbody></table></div>
+<div class="modal-overlay" id="retroModal">
+<div class="modal"><h2>📊 佣金回溯</h2>
+<form onsubmit="event.preventDefault();retroComm()">
+<div class="form-group"><label>选择订单</label>
+<select name="order_id" required>{% for o in orders %}<option value="{{ o.id }}">{{ o.order_code }} - {{ o.channel_name }}</option>{% endfor %}</select></div>
+<div class="form-row">
+<div class="form-group"><label>回现金额</label><input name="cashback" type="number" step="0.01"></div>
+<div class="form-group"><label>回溯金额</label><input name="retro_amount" type="number" step="0.01"></div></div>
+<div class="form-group"><label>回溯规则说明</label><input name="rule" placeholder="如：存活满3个月回溯"></div>
+<button class="btn btn-primary">提交</button></form></div></div>
+<script>
+function retroComm(){
+  var f = new FormData(document.querySelector('#retroModal form'));
+  fetch('/commissions/retro',{method:'POST',body:f}).then(function(r){return r.json()}).then(function(j){
+    if(j.ok){showToast('佣金回溯已记录','success');location.reload()}
+    else showToast(j.error,'error');
+  });
+}
+</script>
+{% endblock %}

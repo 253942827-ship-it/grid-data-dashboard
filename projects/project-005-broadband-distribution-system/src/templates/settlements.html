@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}结算管理 - 宽带分销系统{% endblock %}
+{% block content %}
+<div class="topbar"><h1>💰 结算管理</h1>
+<button class="btn btn-primary btn-sm" onclick="openModal('genModal')"><i class="fas fa-calculator"></i> 生成结算</button></div>
+<div class="card">
+<table><thead><tr><th>业务号</th><th>渠道</th><th>结算周期</th><th>结算金额</th><th>佣金比例</th><th>状态</th><th>操作</th></tr></thead>
+<tbody>{% for s in settlements %}
+<tr><td>{{ s.order_code }}</td><td>{{ s.channel_name or '--' }}</td><td>{{ s.settle_period }}</td>
+<td>{{ '%.2f'|format(s.settle_amount) }}</td><td>{{ (s.commission_rate*100)|int if s.commission_rate else 0 }}%</td>
+<td><span class="tag tag-{{ s.status }}">{{ s.status }}</span></td>
+<td>{% if s.status=='pending' and session.role=='admin' %}
+<button class="btn btn-success btn-sm" onclick="confirmSettle({{ s.id }})">确认结算</button>{% endif %}</td></tr>
+{% else %}<tr><td colspan="7" style="text-align:center;color:#999">暂无结算数据</td></tr>
+{% endfor %}</tbody></table></div>
+<div class="modal-overlay" id="genModal">
+<div class="modal"><h2>生成结算单</h2>
+<form onsubmit="event.preventDefault();genSettle()">
+<div class="form-group"><label>结算周期</label><input name="period" type="month" value="2026-06"></div>
+<div class="form-group"><label>渠道（可选）</label>
+<select name="channel_id"><option value="">全部渠道</option>{% for c in channels %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+<button class="btn btn-primary">生成</button></form></div></div>
+<script>
+function genSettle(){
+  var f = new FormData(document.querySelector('#genModal form'));
+  fetch('/settlements/generate',{method:'POST',body:f}).then(function(r){return r.json()}).then(function(j){
+    if(j.ok){showToast('已生成 '+j.count+' 条结算','success');location.reload()}
+    else showToast(j.error,'error');
+  });
+}
+function confirmSettle(id){
+  fetch('/settlements/'+id+'/confirm',{method:'POST'}).then(function(r){return r.json()}).then(function(j){
+    if(j.ok){showToast('已确认结算','success');location.reload()}
+  });
+}
+</script>
+{% endblock %}

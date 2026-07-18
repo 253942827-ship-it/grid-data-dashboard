@@ -14,7 +14,8 @@ MONTHS = {
     "3月": {"file": "data/网格单元运营数据_202603.xlsx", "prefix": "03", "days": 31, "label": "3月（全月）"},
     "4月": {"file": "data/网格单元运营数据_202604.xlsx", "prefix": "04", "days": 30, "label": "4月（全月）"},
     "5月": {"file": "data/网格单元运营数据_202605.xlsx", "prefix": "05", "days": 31, "label": "5月（全月）"},
-    "6月": {"file": "data/网格单元运营数据_202606.xlsx", "prefix": "06", "days": 23, "label": "6月（截至23日）"},
+    "6月": {"file": "data/网格单元运营数据_202606.xlsx", "prefix": "06", "days": 30, "label": "6月（全月）"},
+    "7月": {"file": "data/网格单元运营数据_202607.xlsx", "prefix": "07", "days": 0, "label": "7月（截至7月9日）"},
 }
 
 CATEGORIES = ["优惠到期", "存量变更", "拆机销户", "纯新套餐", "存量加装"]
@@ -222,7 +223,7 @@ if os.path.exists(_rec_fp):
 # 构建优化建议 HTML
 _rec_html = ''
 if recommendations:
-    _rec_html = '<div class="panel" style="border-top:none;"><div class="section-title" style="border-bottom:2px solid #e8eaf6;padding-bottom:6px;margin-bottom:8px;">\U0001f4a1 优化建议 <span style="font-size:12px;font-weight:400;color:#888;">（基于4-6月数据自动分析）</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:8px;">'
+    _rec_html = '<div class="panel" style="border-top:none;"><div class="section-title" style="border-bottom:2px solid #e8eaf6;padding-bottom:6px;margin-bottom:8px;">\U0001f4a1 优化建议 <span style="font-size:12px;font-weight:400;color:#888;">（基于1-7月数据自动分析）</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:8px;">'
     for r in recommendations:
         if r.get('flags'):
             _fls = ''
@@ -246,7 +247,7 @@ html = f'''<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>网格积分数据看板（2026年4-6月）</title>
+<title>网格积分数据看板（2026年1-7月）</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
@@ -359,7 +360,7 @@ tr:hover td{{background:#f8f9ff}}
 <div class="topbar">
   <h1>📊 网格积分数据看板</h1>
   <div class="meta">
-    <span>📅 2026年4月 - 6月</span>
+    <span>📅 2026年1月 - 7月</span>
     <span id="topGridCount"></span>
     <span id="topDateRange"></span>
   </div>
@@ -374,6 +375,7 @@ tr:hover td{{background:#f8f9ff}}
   <div class="mtab-panel" id="mp-4月"></div>
 <div class="mtab-panel" id="mp-5月"></div>
 <div class="mtab-panel" id="mp-6月"></div>
+  <div class="mtab-panel" id="mp-7月"></div>
 <div class="mtab-panel" id="mp-环比分析"></div>
   <div class="mtab-panel" id="mp-优化建议">{_rec_html}</div>
 
@@ -394,7 +396,7 @@ var MONTH_DATA = {json_str};
 var CATEGORIES = {json.dumps(CATEGORIES, ensure_ascii=False)};
 var CAT_COLORS = {json.dumps(CAT_COLORS, ensure_ascii=False)};
 var CAT_BG = {json.dumps(CAT_BG, ensure_ascii=False)};
-var monthKeys = ['4月','5月','6月'];
+var monthKeys = ['1月','2月','3月','4月','5月','6月','7月'];
 var charts = {{}};
 
 function monthDir(mk) {{
@@ -780,7 +782,7 @@ function renderMonthComparison() {{
   var h = '';
   
   // Overview cards
-  var mks = ['1月','2月','3月','4月','5月','6月'];
+  var mks = ['1月','2月','3月','4月','5月','6月','7月'];
   var sums = mks.map(function(mk) {{ return MONTH_DATA[mk].sumNet; }});
   var avgs = mks.map(function(mk) {{ return MONTH_DATA[mk].avgNet; }});
   var pos = mks.map(function(mk) {{ return MONTH_DATA[mk].posCount; }});
@@ -788,8 +790,8 @@ function renderMonthComparison() {{
   var grids = mks.map(function(mk) {{ return MONTH_DATA[mk].totalGrids; }});
   
   // Net sum month over month
-  var mks = ['1月','2月','3月','4月','5月','6月'];
-  var mData = {{}}, sums = [], dayAvgs = [], dayCnt = [31,28,31,30,31,23];
+  var mks = ['1月','2月','3月','4月','5月','6月','7月'];
+  var mData = {{}}, sums = [], dayAvgs = [], dayCnt = [31,28,31,30,31,30,5];
   mks.forEach(function(mk,i){{
     mData[mk] = MONTH_DATA[mk];
     sums.push(mData[mk].sumNet);
@@ -815,7 +817,7 @@ function renderMonthComparison() {{
   h += '<div class="hb-panel active" id="hbp-hb-overview">';
   
   h += '<div class="hb-summary">';
-  var dayLabels = ['31天','28天','31天','30天','31天','23天'];
+  var dayLabels = ['31天','28天','31天','30天','31天','30天','5天'];
   mks.forEach(function(mk,i){{
     h += '<div class="hb-card"><h3>' + mk + '<br><small>' + dayLabels[i] + '</small></h3>';
     h += '<div class="hl">净增合计（MTD）</div>';
@@ -1040,9 +1042,9 @@ function renderMonthComparison() {{
 }}
 
 function bootHBCharts() {{
-  var mks = ['1月','2月','3月','4月','5月','6月'];
-  var colors = ['#f9a825','#1a237e','#c62828','#2e7d32','#e65100','#6a1b9a'];
-  var monthPrefix = {{'1月':'01','2月':'02','3月':'03','4月':'04','5月':'05','6月':'06'}};
+  var mks = ['1月','2月','3月','4月','5月','6月','7月'];
+  var colors = ['#f9a825','#1a237e','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f'];
+  var monthPrefix = {{'1月':'01','2月':'02','3月':'03','4月':'04','5月':'05','6月':'06','7月':'07'}};
   
   {{ // Daily trend comparison - align by day index (1-16 for common days)
     var canv = document.getElementById('hbDailyTrend');
@@ -1153,7 +1155,7 @@ function bootHBCharts() {{
 function init() {{
   // Build month tabs
   var mtabHTML = '';
-  var monthNames = ['1月','2月','3月','4月','5月','6月','📊 环比分析','💡 优化建议'];
+  var monthNames = ['1月','2月','3月','4月','5月','6月','7月','📊 环比分析','💡 优化建议'];
   monthNames.forEach(function(mn, i) {{
     mtabHTML += '<button class="mtab-btn' + (i===0?' active':'') + '" onclick="switchMonth(' + i + ')">' + mn + '</button>';
   }});
@@ -1166,6 +1168,7 @@ function init() {{
   renderMonth('4月');
   renderMonth('5月');
   renderMonth('6月');
+  renderMonth('7月');
   renderMonthComparison();
 
   // Update topbar
@@ -1183,12 +1186,12 @@ function switchMonth(idx) {{
   btns.forEach(function(b) {{ b.classList.remove('active'); }});
   btns[idx].classList.add('active');
   
-  var panelId = 'mp-' + (['1月','2月','3月','4月','5月','6月','环比分析','优化建议'])[idx];
+  var panelId = 'mp-' + (['1月','2月','3月','4月','5月','6月','7月','环比分析','优化建议'])[idx];
   document.getElementById(panelId).classList.add('active');
   
   // Re-render charts (fix resize issue)
-  if (idx < 6) {{
-    var mk = ['1月','2月','3月','4月','5月','6月'][idx];
+  if (idx < 7) {{
+    var mk = ['1月','2月','3月','4月','5月','6月','7月'][idx];
     setTimeout(function() {{ bootMonthCharts(mk); }}, 50);
   }}
 }}
@@ -1225,8 +1228,8 @@ document.addEventListener('click', function(e) {{
 // Resize handler
 window.addEventListener('resize', function() {{
   var idx = currentMonth;
-  if (idx < 6) {{
-    var mk = ['1月','2月','3月','4月','5月','6月'][idx];
+  if (idx < 7) {{
+    var mk = ['1月','2月','3月','4月','5月','6月','7月'][idx];
     setTimeout(function() {{ bootMonthCharts(mk); }}, 200);
     setTimeout(function() {{ bootHBCharts(); }}, 200);
   }}
@@ -1237,7 +1240,7 @@ init();
 '''
 
 html += f'''
-<div class="footer">网格积分数据看板 · 2026年4月-6月 · 数据每日更新</div>
+<div class="footer">网格积分数据看板 · 2026年1月-7月 · 数据每日更新</div>
 </body>
 </html>'''
 

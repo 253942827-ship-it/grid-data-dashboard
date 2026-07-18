@@ -168,7 +168,7 @@ wb5.close()
 # 7. 质态相关清单
 # ============================================================
 print("7. 读取质态相关清单...")
-zhitai = defaultdict(lambda: {'t0_invalid': 0, 't0_notrust': 0, 't1_invalid': 0, 't1_notrust': 0, 't3_invalid': 0, 't6_invalid': 0, 'tm1_in': 0})
+zhitai = defaultdict(lambda: {'t0_invalid': 0, 't0_notrust': 0, 't1_invalid': 0, 't1_notrust': 0, 't3_invalid': 0, 't6_invalid': 0, 'tm1_in': 0, 't2_invalid': 0})
 fp = os.path.join(DATA_DIR, "质态相关清单.xlsx")
 wb6 = openpyxl.load_workbook(fp, data_only=True)
 ws6 = wb6.active
@@ -590,7 +590,8 @@ for role_name in ['装维经理', '片区经理', '营业员']:
     if gb_valid:
         rows.append('<div style="margin-bottom:8px;">')
         rows.append('<div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">' + chr(9314) + '</span>杠保成功率</div>')
-        top2_gb, bot2_gb = _top2(gb_valid, lambda p: p['gb_rate'])
+        top2_gb = sorted(gb_valid, key=lambda p: p['gb_rate'], reverse=True)[:2] if gb_valid else []
+        bot2_gb = sorted(gb_valid, key=lambda p: p['gb_rate'])[:2] if gb_valid else []
         if top2_gb:
             rows.append('<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span>')
             rows.append(' &nbsp; '.join([_fmt(p, lambda x:round(x['gb_rate']*100,1), '%') for p in top2_gb]))

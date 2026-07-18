@@ -5,3 +5,4 @@ __pycache__/
 .idea/
 *.xlsx
 data/
+email_config.json
