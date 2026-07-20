@@ -20,6 +20,22 @@ def main():
     
     cfg = json.load(open(CONFIG))
     TOKEN = os.environ.get('GITHUB_PAT') or cfg.get('github_token', '')
+    if not TOKEN:
+        # 兜底：从 git remote URL 提取 PAT（个人访问令牌）
+        try:
+            remote = subprocess.run(
+                ['git', 'remote', 'get-url', 'origin'],
+                capture_output=True, text=True, timeout=10,
+                cwd=PROJ_DIR
+            ).stdout.strip()
+            m = re.search(r'https://([^@]+)@github\.com', remote)
+            if m:
+                TOKEN = m.group(1)
+        except Exception:
+            pass
+    if not TOKEN:
+        print("❌ 未找到 GitHub 令牌（GITHUB_PAT / github_token / git remote 中均无）")
+        return 1
     try:
         conn = imaplib.IMAP4_SSL(cfg['imap_server'], cfg['imap_port'])
         conn.login(cfg['email'], cfg['password'])
