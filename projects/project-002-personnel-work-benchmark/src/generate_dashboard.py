@@ -67,14 +67,14 @@ wb3 = openpyxl.load_workbook(fp, data_only=True)
 ws3 = wb3.active
 _current_dates_exist = []
 for r in range(2, ws3.max_row + 1):
-    name = str(ws3.cell(r, 14).value or '').strip()
+    name = str(ws3.cell(r, 11).value or '').strip()
     if not name: continue
-    tv = safe_float(ws3.cell(r, 21).value) or 0   # 提值幅度
-    gt = safe_float(ws3.cell(r, 22).value) or 0   # 高套折算量
+    tv = safe_float(ws3.cell(r, 18).value) or 0   # 提值幅度
+    gt = safe_float(ws3.cell(r, 19).value) or 0   # 高套折算量
     exist_install[name]['value_score'] += tv
     exist_install[name]['gaotao'] += gt
     # 收集竣工日期（列15）
-    dv = ws3.cell(r, 15).value
+    dv = ws3.cell(r, 12).value
     if isinstance(dv, (datetime, date)):
         _current_dates_exist.append(dv if isinstance(dv, date) else dv.date())
 wb3.close()
@@ -103,14 +103,22 @@ last_exist = defaultdict(float)
 fp11 = os.path.join(DATA_DIR, "上月存量高套清单.xlsx")
 wb11 = openpyxl.load_workbook(fp11, data_only=True)
 ws11 = wb11.active
+# 动态检测列号
+col_name11 = col_value11 = col_date11 = None
+for col in range(1, ws11.max_column + 1):
+    h = str(ws11.cell(1, col).value or '').strip()
+    if h == '揽装人': col_name11 = col
+    elif h == '提值幅度': col_value11 = col
+    elif h == '竣工日期': col_date11 = col
+assert col_name11 and col_value11 and col_date11, f"上月存量文件缺少关键列: 揽装人={col_name11} 提值幅度={col_value11} 竣工日期={col_date11}"
+print(f"  上月存量列号: 揽装人={col_name11} 提值幅度={col_value11} 竣工日期={col_date11}")
 _last_dates_exist = []
 for r in range(2, ws11.max_row + 1):
-    name = str(ws11.cell(r, 14).value or '').strip()
+    name = str(ws11.cell(r, col_name11).value or '').strip()
     if not name: continue
-    tv = safe_float(ws11.cell(r, 21).value) or 0
+    tv = safe_float(ws11.cell(r, col_value11).value) or 0
     last_exist[name] += tv
-    # 收集竣工日期（列15）
-    dv = ws11.cell(r, 15).value
+    dv = ws11.cell(r, col_date11).value
     if isinstance(dv, (datetime, date)):
         _last_dates_exist.append(dv if isinstance(dv, date) else dv.date())
 wb11.close()
