@@ -20,7 +20,6 @@ import json
 _pf = os.path.join(DATA_DIR, "tangxia_personnel.json")
 with open(_pf, 'r', encoding='utf-8') as _f:
     _pd = json.load(_f)
-data_date = _pd['data_date']
 personnel = _pd['personnel']
 
 def safe_float(v):
@@ -30,6 +29,52 @@ def safe_float(v):
         return None
     try: return float(v)
     except: return None
+
+def _infer_data_month():
+    """Use the latest date in the new-install list instead of the run date."""
+    fp = os.path.join(DATA_DIR, "新装高套竣工清单.xlsx")
+    if not os.path.exists(fp):
+        return datetime.now().strftime('%Y-%m')
+    wb = openpyxl.load_workbook(fp, data_only=True, read_only=True)
+    latest = None
+    try:
+        ws = wb.active
+        for row in ws.iter_rows(min_row=2, min_col=8, max_col=8, values_only=True):
+            v = row[0]
+            d = None
+            if isinstance(v, (date, datetime)):
+                d = v if isinstance(v, date) else v.date()
+            elif isinstance(v, int) and 19000000 <= v <= 21000000:
+                try:
+                    d = datetime.strptime(str(v), '%Y%m%d').date()
+                except ValueError:
+                    pass
+            elif isinstance(v, str) and len(v) >= 10:
+                for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        d = datetime.strptime(v[:19], fmt).date()
+                        break
+                    except ValueError:
+                        pass
+            if isinstance(d, datetime):
+                d = d.date()
+            if d and d >= date(2026, 1, 1) and (not latest or d > latest):
+                latest = d
+    finally:
+        wb.close()
+    return latest.strftime('%Y-%m') if latest else datetime.now().strftime('%Y-%m')
+
+data_date = _infer_data_month()
+
+def _header_cols(ws, aliases, rows=(1, 2, 3)):
+    """Locate Chinese/technical header columns in the first few rows."""
+    out = {}
+    for r in rows:
+        for c in range(1, ws.max_column + 1):
+            key = aliases.get(str(ws.cell(r, c).value or '').strip())
+            if key:
+                out.setdefault(key, c)
+    return out
 
 print(f"  共 {len(personnel)} 人")
 role_order = {'装维经理': 0, '片区经理': 1, '营业员': 2}
@@ -43,16 +88,27 @@ new_install = defaultdict(lambda: {'value_score': 0, 'gaotao': 0})
 fp = os.path.join(DATA_DIR, "新装高套竣工清单.xlsx")
 wb2 = openpyxl.load_workbook(fp, data_only=True)
 ws2 = wb2.active
+cols2 = _header_cols(ws2, {
+    '揽装人': 'name', '套餐价值': 'value', '折算后': 'gaotao', '竣工日期': 'date',
+})
+col_name2 = cols2.get('name', 11)
+col_value2 = cols2.get('value', 15)
+col_gaotao2 = cols2.get('gaotao', 26)
+col_date2 = cols2.get('date', 8)
+_new_has_technical_row = any(
+    str(ws2.cell(2, c).value or '').strip() == 'sales_name'
+    for c in range(1, ws2.max_column + 1)
+)
 _current_dates_new = []
-for r in range(2, ws2.max_row + 1):
-    name = str(ws2.cell(r, 11).value or '').strip()
+for r in range(3 if _new_has_technical_row else 2, ws2.max_row + 1):
+    name = str(ws2.cell(r, col_name2).value or '').strip()
     if not name: continue
-    pv = safe_float(ws2.cell(r, 15).value) or 0  # 套餐价值
-    zh = safe_float(ws2.cell(r, 25).value) or 0    # 折算后
+    pv = safe_float(ws2.cell(r, col_value2).value) or 0  # 套餐价值
+    zh = safe_float(ws2.cell(r, col_gaotao2).value) or 0    # 折算后
     new_install[name]['value_score'] += pv
     new_install[name]['gaotao'] += zh
-    # 收集竣工日期（列8）
-    dv = ws2.cell(r, 8).value
+    # 收集竣工日期
+    dv = ws2.cell(r, col_date2).value
     if isinstance(dv, (datetime, date)):
         _current_dates_new.append(dv if isinstance(dv, date) else dv.date())
 wb2.close()
@@ -66,18 +122,24 @@ fp = os.path.join(DATA_DIR, "存量高套竣工清单.xlsx")
 wb3 = openpyxl.load_workbook(fp, data_only=True)
 ws3 = wb3.active
 # 动态检测列号
-col_name3 = col_gaotao3 = col_value3 = col_date3 = None
-for col in range(1, ws3.max_column + 1):
-    h = str(ws3.cell(1, col).value or '').strip()
-    if h == '揽装人': col_name3 = col
-    elif h == '提值幅度': col_value3 = col
-    elif h == '高套折算量': col_gaotao3 = col
-    elif h == '竣工日期': col_date3 = col
+cols3 = _header_cols(ws3, {
+    '揽装人': 'name', '提值幅度': 'value', '高套折算量': 'gaotao', '竣工日期': 'date',
+    'sj_salestaff_name': 'name', 'jzbh_value': 'value', 'gt_zsl': 'gaotao',
+    'sj_subs_stat_date': 'date',
+})
+col_name3 = cols3.get('name', 10)
+col_value3 = cols3.get('value', 16)
+col_gaotao3 = cols3.get('gaotao', 27)
+col_date3 = cols3.get('date', 11)
+_exist_has_technical_row = any(
+    str(ws3.cell(2, c).value or '').strip() == 'sj_salestaff_name'
+    for c in range(1, ws3.max_column + 1)
+)
 if not all([col_name3, col_value3, col_gaotao3, col_date3]):
     print(f"  存量缺少列: 揽装人={col_name3} 提值={col_value3} 高套={col_gaotao3} 日期={col_date3}")
 print(f"  存量列号: 揽装人={col_name3} 提值幅度={col_value3} 高套折算={col_gaotao3} 竣工日期={col_date3}")
 _current_dates_exist = []
-for r in range(2, ws3.max_row + 1):
+for r in range(3 if _exist_has_technical_row else 2, ws3.max_row + 1):
     name = str(ws3.cell(r, col_name3).value or '').strip()
     if not name: continue
     tv = safe_float(ws3.cell(r, col_value3).value) or 0
@@ -98,7 +160,7 @@ fp10 = os.path.join(DATA_DIR, "上月新装高套清单.xlsx")
 wb10 = openpyxl.load_workbook(fp10, data_only=True)
 ws10 = wb10.active
 _last_dates_new = []
-for r in range(2, ws10.max_row + 1):
+for r in range(3, ws10.max_row + 1):
     name = str(ws10.cell(r, 11).value or '').strip()
     if not name: continue
     pv = safe_float(ws10.cell(r, 15).value) or 0
@@ -114,12 +176,12 @@ fp11 = os.path.join(DATA_DIR, "上月存量高套清单.xlsx")
 wb11 = openpyxl.load_workbook(fp11, data_only=True)
 ws11 = wb11.active
 # 动态检测列号
-col_name11 = col_value11 = col_date11 = None
-for col in range(1, ws11.max_column + 1):
-    h = str(ws11.cell(1, col).value or '').strip()
-    if h == '揽装人': col_name11 = col
-    elif h == '提值幅度': col_value11 = col
-    elif h == '竣工日期': col_date11 = col
+cols11 = _header_cols(ws11, {
+    '揽装人': 'name', '提值幅度': 'value', '竣工日期': 'date',
+})
+col_name11 = cols11.get('name', 14)
+col_value11 = cols11.get('value', 21)
+col_date11 = cols11.get('date', 15)
 if not all([col_name11, col_value11, col_date11]):
     print(f"  上月存量缺少列: 揽装人={col_name11} 提值={col_value11} 日期={col_date11}")
 print(f"  上月存量列号: 揽装人={col_name11} 提值幅度={col_value11} 竣工日期={col_date11}")
@@ -159,9 +221,22 @@ key_order = defaultdict(lambda: {'dispatch': 0, 'convert': 0, 'zhi_dispatch': 0,
 fp = os.path.join(DATA_DIR, "关键一单清单.xlsx")
 wb5 = openpyxl.load_workbook(fp, data_only=True)
 ws5 = wb5.active
+cols5 = _header_cols(ws5, {
+    '施工人姓名': 'name', '施工人工号': 'name_code',
+    '订单状态名称': 'state',
+    '实时受理积分': 'real_score',
+    '竣工积分': 'finish_score',
+    '质差标签': 'zhi_label',
+    '综合质差消除校验结果': 'zhi_label2',
+})
+col_name5 = cols5.get('name') or cols5.get('name_code', 26)
+col_state5 = cols5.get('state', 3)
+col_real5 = cols5.get('real_score', 101)
+col_finish5 = cols5.get('finish_score', 110)
+col_zhi5 = cols5.get('zhi_label') or cols5.get('zhi_label2', 129)
 for r in range(2, ws5.max_row + 1):
-    name = str(ws5.cell(r, 26).value or '').strip()
-    state = str(ws5.cell(r, 3).value or '').strip()
+    name = str(ws5.cell(r, col_name5).value or '').strip()
+    state = str(ws5.cell(r, col_state5).value or '').strip()
     if not name: continue
     
     # 剔除作废订单
@@ -170,13 +245,13 @@ for r in range(2, ws5.max_row + 1):
     key_order[name]['dispatch'] += 1
     
     # 转化判定：实时受理积分>0 OR 竣工积分>0
-    real_score = safe_float(ws5.cell(r, 100).value) or 0
-    finish_score = safe_float(ws5.cell(r, 109).value) or 0
+    real_score = safe_float(ws5.cell(r, col_real5).value) or 0
+    finish_score = safe_float(ws5.cell(r, col_finish5).value) or 0
     if real_score > 0 or finish_score > 0:
         key_order[name]['convert'] += 1
     
     # 质差单判定：有质差标签
-    zhi_label = str(ws5.cell(r, 110).value or '').strip()
+    zhi_label = str(ws5.cell(r, col_zhi5).value or '').strip()
     if zhi_label:
         key_order[name]['zhi_dispatch'] += 1
         if real_score > 0 or finish_score > 0:
@@ -190,26 +265,31 @@ print("7. 读取质态相关清单...")
 zhitai = defaultdict(lambda: {'t0_invalid': 0, 't0_notrust': 0, 't1_invalid': 0, 't1_notrust': 0, 't3_invalid': 0, 't6_invalid': 0, 'tm1_in': 0, 't2_invalid': 0})
 fp = os.path.join(DATA_DIR, "质态相关清单.xlsx")
 wb6 = openpyxl.load_workbook(fp, data_only=True)
-ws6 = wb6.active
-for r in range(2, ws6.max_row + 1):
-    name = str(ws6.cell(r, 10).value or '').strip()
-    month = str(ws6.cell(r, 3).value or '').strip()
-    valid = safe_float(ws6.cell(r, 5).value) or 0
-    trust = safe_float(ws6.cell(r, 7).value) or 0
-    if not name: continue
-    
-    zhitai[name]['tm1_in'] += 1  # T-1 入网
-    
-    if month == '202606':
-        if valid == 0: zhitai[name]['t0_invalid'] += 1
-        if trust == 0: zhitai[name]['t0_notrust'] += 1
-    elif month == '202605':
-        if valid == 0: zhitai[name]['t1_invalid'] += 1
-        if trust == 0: zhitai[name]['t1_notrust'] += 1
-    elif month == '202603':
-        if valid == 0: zhitai[name]['t3_invalid'] += 1
-    elif month in ('202512', '202601'):
-        if valid == 0: zhitai[name]['t6_invalid'] += 1
+for sheet_name in wb6.sheetnames:
+    if not ('融合质态T+0' in sheet_name or '融合质态T+1' in sheet_name):
+        continue
+    ws6 = wb6[sheet_name]
+    for r in range(3, ws6.max_row + 1):
+        name = str(ws6.cell(r, 10).value or '').strip()
+        month = str(ws6.cell(r, 3).value or '').strip()
+        valid = safe_float(ws6.cell(r, 5).value) or 0
+        trust = safe_float(ws6.cell(r, 7).value) or 0
+        if not name: continue
+
+        zhitai[name]['tm1_in'] += 1  # T-1 入网
+
+        if month == '202608':
+            if valid == 0: zhitai[name]['t0_invalid'] += 1
+            if trust == 0: zhitai[name]['t0_notrust'] += 1
+        elif month == '202607':
+            if valid == 0: zhitai[name]['t1_invalid'] += 1
+            if trust == 0: zhitai[name]['t1_notrust'] += 1
+        elif month == '202606':
+            if valid == 0: zhitai[name]['t2_invalid'] += 1
+        elif month == '202605':
+            if valid == 0: zhitai[name]['t3_invalid'] += 1
+        elif month in ('202602', '202601', '202512'):
+            if valid == 0: zhitai[name]['t6_invalid'] += 1
 wb6.close()
 
 # ============================================================
@@ -227,7 +307,7 @@ if ws14_idx:
         name = str(ws14.cell(r, 8).value or '').strip()
         if not name or name == 'sales_name': continue
         is_full = str(ws14.cell(r, 4).value or '').strip()
-        if is_full != '是':
+        if is_full not in ('是', '1'):
             t0_notfull[name] += 1
 wb_zt.close()
 
@@ -324,11 +404,15 @@ for p in personnel:
 # 10.5. 扫描各数据文件最新日期
 # ============================================================
 from datetime import date as _dt
-def _scan(fp, col, skip=2):
+def _scan(fp, col, skip=2, sheet_kw=None):
     '''快速扫描文件的最新日期'''
     if not os.path.exists(fp): return '-'
     wb = openpyxl.load_workbook(fp, data_only=True)
-    ws = wb.active
+    if sheet_kw:
+        matches = [s for s in wb.sheetnames if sheet_kw in s]
+        ws = wb[matches[0]] if matches else wb.active
+    else:
+        ws = wb.active
     latest = None
     for r in range(skip, ws.max_row + 1):
         v = ws.cell(r, col).value
@@ -350,12 +434,12 @@ def _scan(fp, col, skip=2):
     return latest.strftime('%m/%d') if latest else '-'
 
 _dates = {}
-_dates['new_install'] = _scan(os.path.join(DATA_DIR, '新装高套竣工清单.xlsx'), 8, 2)
-_dates['exist_install'] = _scan(os.path.join(DATA_DIR, '存量高套竣工清单.xlsx'), 15, 2)
-_dates['last_new'] = _scan(os.path.join(DATA_DIR, '上月新装高套清单.xlsx'), 8, 2)
+_dates['new_install'] = _scan(os.path.join(DATA_DIR, '新装高套竣工清单.xlsx'), 8, 3)
+_dates['exist_install'] = _scan(os.path.join(DATA_DIR, '存量高套竣工清单.xlsx'), 11, 3)
+_dates['last_new'] = _scan(os.path.join(DATA_DIR, '上月新装高套清单.xlsx'), 8, 3)
 _dates['last_exist'] = _scan(os.path.join(DATA_DIR, '上月存量高套清单.xlsx'), 15, 2)
 _dates['gb'] = _scan(os.path.join(DATA_DIR, '杠保清单.xlsx'), 4, 3)
-_dates['zt'] = _scan(os.path.join(DATA_DIR, '质态相关清单.xlsx'), 2, 3)
+_dates['zt'] = _scan(os.path.join(DATA_DIR, '质态相关清单.xlsx'), 2, 3, sheet_kw='融合质态T+0')
 _dates['ko'] = _scan(os.path.join(DATA_DIR, '关键一单清单.xlsx'), 2, 2)
 _date_status = f"新装~{_dates['new_install']} 存量~{_dates['exist_install']} 杠保~{_dates['gb']} 质态{_dates['zt']} 关键一单~{_dates['ko']}"
 # ============================================================
@@ -467,7 +551,7 @@ function switchMainTab(i){{
   </div>
 </div>
 
-<div class="main-tabs" style="display:flex;gap:2px;background:#e8eaf6;border-radius:8px;padding:3px;margin-bottom:14px;"><button class="main-tab-btn active" onclick="switchMainTab(0)">📊 数据对标</button><button class="main-tab-btn" onclick="switchMainTab(1)">⚙️ 人员管理</button></div><div class="main-panel active" id="panel-b"><div class="summary-row">
+<div class="main-tabs" style="display:flex;gap:2px;background:#e8eaf6;border-radius:8px;padding:3px;margin-bottom:14px;"><button class="main-tab-btn active" onclick="switchMainTab(0)">📊 数据对标</button><button class="main-tab-btn" onclick="switchMainTab(1)">📋 底层数据</button></div><div class="main-panel active" id="panel-b"><div class="summary-row">
   <div class="summary-card"><div class="num" style="color:#1565c0;">{len(personnel)}</div><div class="label">总人数</div></div>
   <div class="summary-card"><div class="num" style="color:#2e7d32;">{sum(1 for p in personnel if p['role']=='装维经理')}</div><div class="label">装维经理</div></div>
   <div class="summary-card"><div class="num" style="color:#e65100;">{sum(1 for p in personnel if p['role']=='片区经理')}</div><div class="label">片区经理</div></div>
@@ -676,333 +760,29 @@ html += '''
 </div> <!-- close panel-b -->
 '''
 
-# === 管理面板 ===
-base_data_json = json.dumps(personnel, ensure_ascii=False)
-# 使用纯字符串模板 + replace 插入 BASE_DATA，避免 f-string 转义噩梦
-_MGMT_TPL = '''<div class="main-panel" id="panel-m">
+# === 底层数据只读面板 ===
+_mgmt_rows = []
+for _i, _p in enumerate(personnel, 1):
+    _code = str(_p.get('code', '') or '').strip()
+    _mgmt_rows.append(
+        f'<tr><td>{_i}</td><td class="tl hl-name">{_p["name"]}</td>'
+        f'<td>{_code}</td><td>{_p["role"]}</td><td>{_p.get("cp", "") or "-"}</td>'
+        f'<td class="tr">{_p.get("target_total", 0):.1f}</td>'
+        f'<td class="tr">{_p.get("target_daliang", 0):.1f}</td></tr>'
+    )
+html += f'''<div class="main-panel" id="panel-m">
 <div class="panel" style="margin-top:10px;">
 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:2px solid #c5cae9;margin-bottom:10px;">
-<span style="font-size:14px;font-weight:700;color:#1a237e;">⚙️ 人员管理</span>
-<span style="font-size:11px;color:#888;">新增/删除人员、调节目标（保存后自动刷新）</span>
+<span style="font-size:14px;font-weight:700;color:#1a237e;">📋 底层数据</span>
+<span style="font-size:11px;color:#888;">只读展示人员/编码/岗位/CP/目标，更新请使用月度模板</span>
 </div>
-<div style="padding:0 14px 14px;">
-<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-<button onclick="addP()" style="padding:6px 14px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">➕ 新增</button>
-<button onclick="saveP()" style="padding:6px 14px;background:#1a237e;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">💾 保存</button>
-<button onclick="resetP()" style="padding:6px 14px;background:#888;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;">🔄 重置</button>
-</div>
-<div class="tbl-wrap"><table id="mt" style="min-width:auto;font-size:12px;">
-<thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>增存高套目标</th><th>达量目标</th><th>操作</th></tr></thead>
-<tbody id="mb"></tbody></table></div></div></div>
-<script>
-var BASE_DATA = [];
-
-function ld(){var s=localStorage.getItem("pm");return s?JSON.parse(s):BASE_DATA}
-function rm(){
-  var d=ld(),h="";
-  d.forEach(function(p,i){
-    h+="<tr><td>"+(i+1)+'</td><td class="tl"><input value="'+p.name.replace(/"/g,"&quot;")+'" id="n'+i+'" style="width:80px;"></td>';
-    h+='<td><input value="'+(p.code||"")+'" id="c'+i+'" style="width:80px;"></td>';
-    h+='<td><select id="r'+i+'" style="width:90px;">'+["装维经理","片区经理","营业员"].map(function(r){return '<option'+(r===p.role?' selected="selected"':'')+'>'+r+'</option>'}).join("")+'</select></td>';
-    h+='<td><input value="'+(p.cp||"")+'" id="cp'+i+'" style="width:70px;"></td>';
-    h+='<td><input type="number" step="0.1" value="'+(p.target_total||0)+'" id="tt'+i+'" style="width:70px"></td>';
-    h+='<td><input type="number" step="0.1" value="'+(p.target_daliang||0)+'" id="td'+i+'" style="width:70px"></td>';
-    h+='<td><button onclick="dp('+i+')" style="padding:2px 8px;background:#c62828;color:#fff;border:none;border-radius:4px;cursor:pointer">删除</button></td></tr>'
-  });
-  document.getElementById("mb").innerHTML=h;
-}
-function rmc(){
-  document.querySelectorAll("table:not(#mt)").forEach(function(t){
-    var rh=t.closest(".panel").querySelector(".role-header .rc");
-    if(!rh)return;
-    var cnt=t.querySelectorAll("tbody tr:not([style*='none'])").length;
-    rh.textContent=cnt+'人';
-  });
-}
-function saveP(){
-  var d=ld();
-  d.forEach(function(p,i){
-    p.name=document.getElementById("n"+i).value;
-    p.code=document.getElementById("c"+i).value;
-    p.role=document.getElementById("r"+i).value;
-    p.cp=document.getElementById("cp"+i).value;
-    p.target_total=parseFloat(document.getElementById("tt"+i).value)||0;
-    p.target_daliang=parseFloat(document.getElementById("td"+i).value)||0;
-  });
-  localStorage.setItem("pm",JSON.stringify(d));
-  updateCards();
-  alert("✅ 已保存");
-  setTimeout(function(){updateAnalysis();location.reload()},200);
-}
-function addP(){
-  var d=ld();
-  d.push({name:"新人员",code:"",role:"装维经理",cp:"-",target_total:0,target_daliang:0});
-  localStorage.setItem("pm",JSON.stringify(d));
-  rm();
-}
-function dp(i){
-  if(!confirm("确认删除?"))return;
-  var d=ld();
-  d.splice(i,1);
-  localStorage.setItem("pm",JSON.stringify(d));
-  updateCards();
-  // 使用缓存破坏参数强制页面刷新
-  var base = window.location.href.split('?')[0];
-  window.location.href = base + '?v=' + Date.now();
-}
-function resetP(){
-  if(!confirm("\u786e\u8ba4\u91cd\u7f6e\uff1f\u8fd9\u5c06\u6e05\u9664\u6240\u6709\u4eba\u5458\u7ba1\u7406\u6570\u636e\uff0c\u6062\u590d\u521d\u59cb\u72b6\u6001\u3002"))return;
-  localStorage.removeItem("pm");
-  location.reload();
-}
-
-function syncDataTable(){
-  var s = localStorage.getItem("pm");
-  if(!s)return;
-  var md;
-  try{md=JSON.parse(s)}catch(e){return}
-  if(!md||!md.length)return;
-  var existing={};
-  document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
-    var c=r.querySelector("td:first-child");
-    if(c) existing[c.textContent.trim()]=r;
-  });
-  md.forEach(function(p){
-    if(existing[p.name])return;
-    var tbl=null;
-    document.querySelectorAll("table:not(#mt)").forEach(function(t){
-      var h=t.closest(".panel").querySelector(".role-header");
-      if(h&&h.textContent.includes(p.role)) tbl=t;
-    });
-    if(!tbl)return;
-    var tb=tbl.querySelector("tbody"),nr=tb.insertRow();
-    for(var i=0;i<25;i++){var nc=nr.insertCell();nc.className='tr';}
-    nc=nr.cells[0];nc.className='tl hl-name';nc.textContent=p.name;
-    nc=nr.cells[1];nc.className='hl-role';nc.textContent=p.role;
-    for(var i=2;i<25;i++){nr.cells[i].textContent='0';}
-    nr.cells[4].textContent='0.00';nr.cells[5].textContent='0.00';
-    nr.cells[6].textContent='-';nr.cells[9].textContent='-';
-    nr.cells[10].textContent=(p.target_total||0).toFixed(1);
-    nr.cells[11].innerHTML='<span class="rate-bg">-</span>';
-    nr.cells[12].textContent=(p.target_daliang||0).toFixed(1);
-    nr.cells[13].textContent='-';
-    nr.cells[16].innerHTML='<span class="rate-bg rate-low">0.0%</span>';
-    nr.cells[19].textContent='-';
-    // Update role header count
-    var rh=tbl.closest(".panel").querySelector(".role-header .rc");
-    if(rh)rh.textContent=parseInt(rh.textContent)+1+'人';
-  });
-}
-
-function updateAnalysis(){
-  document.querySelectorAll(".role-header").forEach(function(hdr){
-    var pan = hdr.closest(".panel");
-    var t = pan && pan.querySelector("table");
-    if(!t)return;
-    var rows = [];
-    t.querySelectorAll("tbody tr").forEach(function(r){
-      if(r.style.display === "none") return;
-      var c = r.querySelectorAll("td");
-      if(c.length<25)return;
-      var nm = c[0].textContent.trim();
-      rows.push({e:r, n:nm, s:parseFloat(c[4].textContent)||0, g:parseFloat(c[9].textContent)||0,
-        gb:parseFloat(c[16].textContent)||0, d:parseInt(c[17].textContent)||0, cv:parseInt(c[18].textContent)||0, cvt:parseFloat(c[19].textContent)||0,
-        zt:(parseInt(c[20].textContent)||0)+(parseInt(c[21].textContent)||0)+(parseInt(c[22].textContent)||0)+(parseInt(c[23].textContent)||0)+(parseInt(c[24].textContent)||0)});
-    });
-    if(!rows.length)return;
-    var ap = pan.nextElementSibling;
-    if(!ap||!ap.innerHTML.includes('各指标领先落后分析'))return;
-    
-    function top2(arr,kf){
-      var s = arr.slice().sort(function(a,b){return kf(b)-kf(a)});
-      return [s.slice(0,2), s.slice(-2).reverse()];
-    }
-    function fmt4(arr,kf,suf){
-      return arr.map(function(p){return '<b>'+p.n+'</b> '+kf(p).toFixed(1)+suf}).join(' &nbsp; ');
-    }
-    
-    var html = '';
-    // 1. value score
-    var t2 = top2(rows,function(p){return p.s});
-    html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">①</span>价值积分</div>';
-    if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.s},'分')+'</div>';
-    if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.s},'分')+'</div>';
-    html += '</div>';
-    // 2. gaotao
-    t2 = top2(rows,function(p){return p.g});
-    html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">②</span>增存高套</div>';
-    if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.g},'')+'</div>';
-    if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.g},'')+'</div>';
-    html += '</div>';
-    // 3. gangbao
-    var gbr = rows.filter(function(p){return p.gb>0});
-    if(gbr.length){
-      t2 = top2(gbr,function(p){return p.gb});
-      html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">③</span>杠保成功率</div>';
-      if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+fmt4(t2[0],function(p){return p.gb},'%')+'</div>';
-      if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+fmt4(t2[1],function(p){return p.gb},'%')+'</div>';
-      html += '</div>';
-    }
-    // 4. key order - only for role with dispatch data
-    var kor = rows.filter(function(p){return p.d>0});
-    if(kor.length){
-      t2 = top2(kor,function(p){return p.cvt});
-      if(t2[0].length) html += '<div style="margin-bottom:8px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">④</span>关键一单转化率<span style="font-size:10px;color:#999;font-weight:400;margin-left:4px;">（仅装维经理）</span></div>';
-      if(t2[0].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#2e7d32;">▲ 领先:</span> '+t2[0].map(function(p){return '<b>'+p.n+'</b> '+p.cvt.toFixed(1)+'%'+'（派单'+p.d+'、转化'+p.cv+'）'}).join(' &nbsp; ')+'</div>';
-      if(t2[1].length) html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">▼ 落后:</span> '+t2[1].map(function(p){return '<b>'+p.n+'</b> '+p.cvt.toFixed(1)+'%'+'（派单'+p.d+'、转化'+p.cv+'）'}).join(' &nbsp; ')+'</div>';
-      html += '</div>';
-    }
-    // 5. zhitai
-    var ztr = rows.filter(function(p){return p.zt>0});
-    if(ztr.length){
-      html += '<div style="margin-bottom:2px;"><div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">⑤</span>质态关注（需要提醒的人员）</div>';
-      ztr.sort(function(a,b){return b.zt-a.zt});
-      ztr.slice(0,2).forEach(function(p){
-        var f=[];
-        var c=p.e.querySelectorAll("td");
-        if(parseInt(c[20].textContent||0)>0) f.push('T0未满卡'+parseInt(c[20].textContent));
-        if(parseInt(c[21].textContent||0)>0) f.push('T0无效'+parseInt(c[21].textContent));
-        if(parseInt(c[22].textContent||0)>0) f.push('T0无托收'+parseInt(c[22].textContent));
-        if(parseInt(c[23].textContent||0)>0) f.push('T1无效'+parseInt(c[23].textContent));
-        if(parseInt(c[24].textContent||0)>0) f.push('T1无托收'+parseInt(c[24].textContent));
-        html += '<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>'+p.n+'</b> 共'+p.zt+'项异常：'+f.join('、')+'</span></div>';
-      });
-      html += '</div>';
-    }
-    ap.innerHTML = '<div style="font-weight:700;color:#1a237e;border-bottom:2px solid #e8eaf6;padding-bottom:4px;margin-bottom:6px;">📊 '+hdr.textContent.trim().replace(/\d+人/,'').trim()+' 各指标领先落后分析</div>'+html;
-  });
-}
-
-function ap(){
-  if(!s)return;
-  var md;
-  try{md=JSON.parse(s)}catch(e){return}
-  if(!md||!md.length)return;
-  var nm={};
-  md.forEach(function(p){nm[p.name]=p});
-  document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(row){
-    var nc=row.querySelector("td:first-child");
-    if(!nc)return;
-    var na=nc.textContent.trim(),p=nm[na];
-    if(!p){row.remove();return}
-    var t=row.querySelectorAll("td");
-    if(t.length<20)return;
-    t[10].textContent=(p.target_total||0).toFixed(1);
-    t[12].textContent=(p.target_daliang||0).toFixed(1);
-    var tot=parseFloat(t[9].textContent)||0,tar=p.target_total||0;
-    if(tar>0){
-      var r=tot/tar;
-      t[11].innerHTML='<span class="rate-bg '+(r>=0.8?'rate-high':r>=0.5?'rate-mid':'rate-low')+'">'+(r*100).toFixed(1)+'%</span>';
-    }
-    t[13].innerHTML=((p.target_daliang||0)-tot).toFixed(1);
-    t[13].className="tr "+(((p.target_daliang||0)-tot)>=0?"p":"n");
-  });
-  document.querySelectorAll(".role-header").forEach(function(h){
-    var c=h.closest(".panel").querySelectorAll("tbody tr:not([style*='none'])").length;
-    var r=h.querySelector(".rc");
-    if(r)r.textContent=c+"人";
-  });
-  var rz=document.querySelectorAll("table:not(#mt) tbody tr:not([style*='none'])");
-  var rc={"装维经理":0,"片区经理":0,"营业员":0};
-  rz.forEach(function(r){var c=r.querySelectorAll("td");if(c.length>1)rc[c[1].textContent.trim()]++});
-  var ca=document.querySelectorAll(".summary-card .num");
-  if(ca.length>=4){ca[0].textContent=rz.length;ca[1].textContent=rc["装维经理"];ca[2].textContent=rc["片区经理"];ca[3].textContent=rc["营业员"]}
-}
-window.addEventListener("DOMContentLoaded",function(){setTimeout(ap,100);setTimeout(function(){updateCards()},50);setTimeout(rm,150);setTimeout(function(){syncDataTable();setTimeout(updateAnalysis,100)},200)});
-window.addEventListener("pageshow",function(){setTimeout(ap,50);setTimeout(function(){updateCards()},30);setTimeout(rm,100);
-// 独立更新摘要卡片 - 直接从 localStorage/BASE_DATA 统计
-function updateCards(){
-  var s=localStorage.getItem("pm");
-  var d;
-  if(s){try{d=JSON.parse(s)}catch(e){d=BASE_DATA}}else{d=BASE_DATA}
-  if(!d||!d.length)return;
-  var t=d.length,zw=0,pq=0,yy=0;
-  d.forEach(function(p){
-    if(p.role==="\u88c5\u7ef4\u7ecf\u7406")zw++;
-    else if(p.role==="\u7247\u533a\u7ecf\u7406")pq++;
-    else if(p.role==="\u8425\u4e1a\u5458")yy++;
-  });
-  var ca=document.querySelectorAll(".summary-card .num");
-  if(ca.length>=4){ca[0].textContent=t;ca[1].textContent=zw;ca[2].textContent=pq;ca[3].textContent=yy;}
-  // 更新角色标题计数
-  document.querySelectorAll(".role-header").forEach(function(h){
-    var r=h.querySelector(".rc");
-    if(!r)return;
-    var role=h.textContent.trim().replace(/\d+人/,'').trim();
-    var cnt=0;
-    d.forEach(function(p){if(p.role===role)cnt++;});
-    r.textContent=cnt+"\u4eba";
-  });
-}
-
-// 独立删除行监听器 - 不依赖 ap/ld 等函数
-(function(){
-  document.addEventListener("DOMContentLoaded",function(){
-    var s=localStorage.getItem("pm");
-    if(!s)return;
-    var d;
-    try{d=JSON.parse(s)}catch(e){return}
-    if(!d||!d.length)return;
-    var n={};
-    d.forEach(function(p){n[p.name]=1});
-    document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
-      var c=r.querySelector("td:first-child");
-      if(c&&!n[c.textContent.trim()]){r.remove();}
-    });
-  });
-})();setTimeout(function(){syncDataTable();setTimeout(updateAnalysis,50)},150)});
-setTimeout(rm,100);
-// 独立更新摘要卡片 - 直接从 localStorage/BASE_DATA 统计
-function updateCards(){
-  var s=localStorage.getItem("pm");
-  var d;
-  if(s){try{d=JSON.parse(s)}catch(e){d=BASE_DATA}}else{d=BASE_DATA}
-  if(!d||!d.length)return;
-  var t=d.length,zw=0,pq=0,yy=0;
-  d.forEach(function(p){
-    if(p.role==="\u88c5\u7ef4\u7ecf\u7406")zw++;
-    else if(p.role==="\u7247\u533a\u7ecf\u7406")pq++;
-    else if(p.role==="\u8425\u4e1a\u5458")yy++;
-  });
-  var ca=document.querySelectorAll(".summary-card .num");
-  if(ca.length>=4){ca[0].textContent=t;ca[1].textContent=zw;ca[2].textContent=pq;ca[3].textContent=yy;}
-  // 更新角色标题计数
-  document.querySelectorAll(".role-header").forEach(function(h){
-    var r=h.querySelector(".rc");
-    if(!r)return;
-    var role=h.textContent.trim().replace(/\d+人/,'').trim();
-    var cnt=0;
-    d.forEach(function(p){if(p.role===role)cnt++;});
-    r.textContent=cnt+"\u4eba";
-  });
-}
-
-// 独立删除行监听器 - 不依赖 ap/ld 等函数
-(function(){
-  document.addEventListener("DOMContentLoaded",function(){
-    var s=localStorage.getItem("pm");
-    if(!s)return;
-    var d;
-    try{d=JSON.parse(s)}catch(e){return}
-    if(!d||!d.length)return;
-    var n={};
-    d.forEach(function(p){n[p.name]=1});
-    document.querySelectorAll("table:not(#mt) tbody tr").forEach(function(r){
-      var c=r.querySelector("td:first-child");
-      if(c&&!n[c.textContent.trim()]){r.remove();}
-    });
-  });
-})();
-</script>
-</div>
+<div class="tbl-wrap"><table style="min-width:auto;font-size:12px;">
+<thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>增存高套目标</th><th>达量目标</th></tr></thead>
+<tbody>{''.join(_mgmt_rows)}</tbody></table></div></div></div>
 '''
 
-# Replace placeholder with real data
-_js = _MGMT_TPL
-_js = _js.replace('var BASE_DATA = [];', 'var BASE_DATA = ' + base_data_json + ';')
-html += _js
 html += f'''
-<div class="footer">棠下人员工作看板 · {data_date[:7]} · 数据源: 6月清单</div>
+<div class="footer">棠下人员工作看板 · {data_date[:7]} · 数据源: {int(data_date[5:7])}月清单</div>
 </div>
 </body>
 </html>'''
