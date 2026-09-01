@@ -767,6 +767,7 @@ for _i, _p in enumerate(personnel, 1):
     _mgmt_rows.append(
         f'<tr><td>{_i}</td><td class="tl hl-name">{_p["name"]}</td>'
         f'<td>{_code}</td><td>{_p["role"]}</td><td>{_p.get("cp", "") or "-"}</td>'
+        f'<td class="tr">{_p.get("target_value", 0):.1f}</td>'
         f'<td class="tr">{_p.get("target_total", 0):.1f}</td>'
         f'<td class="tr">{_p.get("target_daliang", 0):.1f}</td></tr>'
     )
@@ -777,7 +778,7 @@ html += f'''<div class="main-panel" id="panel-m">
 <span style="font-size:11px;color:#888;">只读展示人员/编码/岗位/CP/目标，更新请使用月度模板</span>
 </div>
 <div class="tbl-wrap"><table style="min-width:auto;font-size:12px;">
-<thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>增存高套目标</th><th>达量目标</th></tr></thead>
+<thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>价值积分目标</th><th>增存高套目标</th><th>达量目标</th></tr></thead>
 <tbody>{''.join(_mgmt_rows)}</tbody></table></div></div></div>
 '''
 

@@ -111,7 +111,7 @@ def publish_via_github_api(files):
 
     ref, err = github_api_request(
         'PATCH', repo_path + '/git/refs/heads/main', token,
-        {'sha': commit['sha'], 'force': True},
+        {'sha': commit['sha'], 'force': False},
     )
     if err:
         raise RuntimeError(f"更新 main 失败: {err}")
@@ -215,36 +215,25 @@ def main():
         print("❌ 看板生成失败，未上传 GitHub Pages")
         return 1
     
-    # 上传GitHub
+    # 上传GitHub：基于远端 main 创建非强制提交，避免 force push 覆盖网格看板提交
     print("📤 上传到 GitHub Pages...")
-    cmds = f"""
-cd {WS_DIR}
-cp {PROJ_DIR}/docs/dashboard.html docs/personnel-dashboard.html
-cp {PROJ_DIR}/docs/tangxia_dashboard.html docs/tangxia_dashboard.html
-git add docs/personnel-dashboard.html docs/tangxia_dashboard.html
-git commit -m "自动更新 $(date +%Y-%m-%d)" 2>/dev/null || true
-git -c http.version=HTTP/1.1 push origin main --force 2>&1 | tail -3
-"""
     try:
-        r = subprocess.run(['/bin/zsh', '-lc', cmds], capture_output=True, text=True, timeout=60)
-        push_error = None if r.returncode == 0 else r.stderr[-200:]
-    except subprocess.TimeoutExpired:
-        r = None
-        push_error = 'git push 超时'
-
-    if push_error:
-        print(f"⚠️ {push_error}")
-        print("📡 改用 GitHub API 上传...")
-        try:
-            publish_via_github_api([
-                ('docs/personnel-dashboard.html', 'docs/personnel-dashboard.html'),
-                ('docs/tangxia_dashboard.html', 'docs/tangxia_dashboard.html'),
-            ])
-        except Exception as e:
-            print(f"❌ GitHub API 上传失败: {e}")
-            return 1
-    else:
-        print(r.stdout[-100:] if r.returncode == 0 else f"❌ {r.stderr[-100:]}")
+        shutil.copy2(
+            os.path.join(PROJ_DIR, 'docs', 'dashboard.html'),
+            os.path.join(WS_DIR, 'docs', 'personnel-dashboard.html'),
+        )
+        shutil.copy2(
+            os.path.join(PROJ_DIR, 'docs', 'tangxia_dashboard.html'),
+            os.path.join(WS_DIR, 'docs', 'tangxia_dashboard.html'),
+        )
+        publish_via_github_api([
+            ('docs/personnel-dashboard.html', 'docs/personnel-dashboard.html'),
+            ('docs/tangxia_dashboard.html', 'docs/tangxia_dashboard.html'),
+        ])
+    except Exception as e:
+        print(f"❌ GitHub API 上传失败: {e}")
+        return 1
+    print("  ✅ GitHub API 上传成功")
     return 0
 
 if __name__ == '__main__':
