@@ -731,7 +731,7 @@ function switchMainTab(i){{
 <div class="page">
 <div class="topbar">
   <h1>📊 沙太人员工作看板</h1>
-  <div class="meta"><span>📅 {data_date[:7]}</span><span>👤 {len(personnel)} 人</span></div>
+  <div class="meta"><span>📅 {data_date[:7]}</span><span>👤 {len(personnel)} 人</span><a href="personal.html" target="_blank" style="color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:6px;padding:3px 10px;font-size:12px;text-decoration:none;">👤 个人视图</a></div>
   <div class="date-status" style="width:100%;font-size:10px;color:rgba(255,255,255,.7);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;">
     📡 {_date_status}
   </div>

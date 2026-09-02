@@ -273,7 +273,7 @@ def main():
     
     # 生成看板
     gen_failed = False
-    for gen in ['generate_dashboard.py', 'generate_tangxia.py']:
+    for gen in ['generate_dashboard.py', 'generate_tangxia.py', 'generate_personal.py']:
         fp = os.path.join(PROJ_DIR, 'src', gen)
         print(f"🔄 {gen}...")
         try:
@@ -302,9 +302,14 @@ def main():
             os.path.join(PROJ_DIR, 'docs', 'tangxia_dashboard.html'),
             os.path.join(WS_DIR, 'docs', 'tangxia_dashboard.html'),
         )
+        shutil.copy2(
+            os.path.join(PROJ_DIR, 'docs', 'personal.html'),
+            os.path.join(WS_DIR, 'docs', 'personal.html'),
+        )
         publish_via_github_api([
             ('docs/personnel-dashboard.html', 'docs/personnel-dashboard.html'),
             ('docs/tangxia_dashboard.html', 'docs/tangxia_dashboard.html'),
+            ('docs/personal.html', 'docs/personal.html'),
         ])
     except Exception as e:
         print(f"❌ GitHub API 上传失败: {e}")

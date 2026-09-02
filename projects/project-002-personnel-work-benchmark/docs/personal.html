@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>个人视图 - 沙太人员工作看板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#eef1f6;color:#1a1a2e;padding:20px}
+.page{max-width:1080px;margin:0 auto}
+.topbar{background:linear-gradient(135deg,#0d1b4a,#1a237e);color:#fff;border-radius:10px;padding:16px 22px;margin-bottom:16px}
+.topbar h1{font-size:18px;font-weight:700}
+.topbar .sub{font-size:11px;opacity:.75;margin-top:4px}
+.search-wrap{margin-top:12px;position:relative;max-width:420px}
+.search-wrap input{width:100%;padding:10px 14px;border:none;border-radius:8px;font-size:14px;outline:none;font-family:inherit}
+.dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);max-height:280px;overflow:auto;z-index:10;display:none}
+.dropdown .item{padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0}
+.dropdown .item:hover,.dropdown .item.active{background:#e8eaf6;color:#1a237e}
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.05);padding:14px 16px;margin-bottom:14px}
+.person-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.person-head .name{font-size:20px;font-weight:700;color:#0d1b4a}
+.person-head .role{font-size:12px;color:#888}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border-radius:10px;padding:12px 14px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.kpi .num{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .label{font-size:11px;color:#888;margin-top:2px}
+.bar{height:7px;background:#e8eaf6;border-radius:4px;overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;border-radius:4px}
+.sec-title{font-size:13px;font-weight:700;color:#1a237e;margin-bottom:10px;border-bottom:2px solid #e8eaf6;padding-bottom:6px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.stat{background:#f8f9ff;border:1px solid #eef0f7;border-radius:8px;padding:10px 12px}
+.stat .lab{font-size:11px;color:#888}
+.stat .val{font-size:17px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+.stat .val.small{font-size:14px}
+.positive{color:#2e7d32}.negative{color:#c62828}.warn{color:#e65100}
+.click{color:#1a237e;cursor:pointer;text-decoration:underline}
+.click:hover{color:#c62828}
+.na{color:#ccc}
+.modal-mask{position:fixed;inset:0;background:rgba(13,27,74,.45);display:none;align-items:center;justify-content:center;z-index:99;padding:20px}
+.modal{background:#fff;border-radius:10px;max-width:720px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+.modal-head{padding:12px 16px;border-bottom:2px solid #e8eaf6;display:flex;justify-content:space-between;align-items:center}
+.modal-head b{color:#1a237e}
+.modal-close{border:none;background:#e8eaf6;color:#1a237e;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px}
+.modal-body{overflow:auto;padding:14px 16px}
+.modal-body table{width:100%;border-collapse:collapse;font-size:12px}
+.modal-body th{background:#e8eaf6;color:#1a237e;padding:6px;text-align:left;position:sticky;top:0}
+.modal-body td{padding:5px 6px;border-bottom:1px solid #f0f0f0;font-variant-numeric:tabular-nums}
+.empty{color:#999;font-size:12px;padding:6px 0}
+.footer{text-align:center;font-size:11px;color:#aaa;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1>👤 沙太人员个人视图</h1>
+    <div class="sub">数据月份 <span id="benchmark"></span> · 目标月份 <span id="targetMonth"></span> · 更新时间 <span id="updatedAt"></span></div>
+    <div class="search-wrap">
+      <input id="search" placeholder="输入姓名搜索" autocomplete="off">
+      <div class="dropdown" id="dropdown"></div>
+    </div>
+  </div>
+
+  <div id="personView" style="display:none">
+    <div class="card person-head">
+      <div>
+        <span class="name" id="pName"></span>
+        <span class="role" id="pRole"></span>
+      </div>
+      <div style="font-size:12px;color:#888">揽装编码 <span id="pCode"></span> · CP <span id="pCp"></span></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="num" id="kScore"></div><div class="label">价值积分 · 目标完成</div><div class="bar"><i id="kScoreBar"></i></div></div>
+      <div class="kpi"><div class="num" id="kGaotao"></div><div class="label">增存高套 · 目标完成</div><div class="bar"><i id="kGaotaoBar"></i></div></div>
+      <div class="kpi"><div class="num" id="kGap"></div><div class="label">达量缺口</div></div>
+      <div class="kpi"><div class="num" id="kSk"></div><div class="label">商客 299+ 发展量</div></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">① 价值积分</div>
+      <div class="grid2">
+        <div class="stat"><div class="lab">新装积分</div><div class="val" id="sNew"></div></div>
+        <div class="stat"><div class="lab">存量积分</div><div class="val" id="sExist"></div></div>
+        <div class="stat"><div class="lab">合计 / 目标</div><div class="val" id="sTotal"></div></div>
+        <div class="stat"><div class="lab">环比（日均）</div><div class="val" id="sMom"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">② 增存高套</div>
+      <div class="grid2">
+        <div class="stat"><div class="lab">新装折算</div><div class="val" id="gNew"></div></div>
+        <div class="stat"><div class="lab">存量折算</div><div class="val" id="gExist"></div></div>
+        <div class="stat"><div class="lab">总计 / 目标</div><div class="val" id="gTotal"></div></div>
+        <div class="stat"><div class="lab">达量目标 / 缺口</div><div class="val" id="gGap"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">③ 杠保</div>
+      <div class="grid2">
+        <div class="stat"><div class="lab">杠保总量</div><div class="val" id="gbTotal"></div></div>
+        <div class="stat"><div class="lab">成功率</div><div class="val" id="gbRate"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">④ 关键一单（装维经理）</div>
+      <div class="grid2">
+        <div class="stat"><div class="lab">派单 / 转化</div><div class="val" id="koCount"></div></div>
+        <div class="stat"><div class="lab">转化率 vs 营服平均</div><div class="val" id="koRate"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">⑥ 质态异常（点击数字查看异常接入号）</div>
+      <div class="grid2" id="ztList"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">⑦ 商客发展</div>
+      <div class="grid2">
+        <div class="stat"><div class="lab">增存商企</div><div class="val" id="skShangqi"></div></div>
+        <div class="stat"><div class="lab">小微 ICT</div><div class="val" id="skWeixiao"></div></div>
+        <div class="stat"><div class="lab">299+ 发展量</div><div class="val" id="skDev299"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">沙太人员个人视图 · 数据来自各月度清单，仅供工作核对</div>
+</div>
+
+<div class="modal-mask" id="modal">
+  <div class="modal">
+    <div class="modal-head"><b id="modalTitle"></b><button class="modal-close" onclick="closeModal()">关闭</button></div>
+    <div class="modal-body"><table><thead><tr><th>接入号</th></tr></thead><tbody id="modalBody"></tbody></table></div>
+  </div>
+</div>
+
+<script>
+var DATA = {"benchmark": "2026-08", "target_month": "2026-08", "updated_at": "2026-09-02 12:26", "avg_ko_rate": 0.1872, "order": ["05006277", "06214145", "05006087", "05006188", "05006102", "05006287", "05006170", "05010220", "05010278", "05010515", "05010514", "16000104", "23130077", "16000097", "23130213", "16000180", "16000186", "23130308", "23130331", "23130261", "21109005", "21109017", "21109083", "21111755", "21111758", "23130285", "23130426", "23130425"], "people": {"05006277": {"name": "邓锦安", "code": "05006277", "role": "装维经理", "cp": "", "target_value": 0.0, "target_total": 9.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 591.0, "total_score": 591.0, "last_total": 824.0, "mom": -0.2828, "value_rate": null, "new_gaotao": 0, "exist_gaotao": 7.5, "total_gaotao": 7.5, "gaotao_rate": 0.8333, "gap": -1.5, "gb_total": 15, "gb_success": 2, "gb_rate": 0.1333, "ko_dispatch": 54, "ko_convert": 43, "ko_rate": 0.7963, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 200, "sk_dev299": 1}, "06214145": {"name": "张禄", "code": "06214145", "role": "装维经理", "cp": "郑创佳", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 328.0, "exist_score": 40.0, "total_score": 368.0, "last_total": 541.0, "mom": -0.3198, "value_rate": null, "new_gaotao": 2.5, "exist_gaotao": 0.5, "total_gaotao": 3.0, "gaotao_rate": 0.375, "gap": 3.0, "gb_total": 3, "gb_success": 0, "gb_rate": 0.0, "ko_dispatch": 48, "ko_convert": 2, "ko_rate": 0.0417, "zt": {"t0_invalid": ["ADSLD26****5087"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 0, "sk_weixiao": 200, "sk_dev299": 0}, "05006087": {"name": "夏健", "code": "05006087", "role": "装维经理", "cp": "单飞", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 1207.0, "exist_score": 56.0, "total_score": 1263.0, "last_total": 1107.0, "mom": 0.1409, "value_rate": null, "new_gaotao": 8.1, "exist_gaotao": 0.75, "total_gaotao": 8.85, "gaotao_rate": 1.1062, "gap": -2.85, "gb_total": 12, "gb_success": 1, "gb_rate": 0.0833, "ko_dispatch": 39, "ko_convert": 4, "ko_rate": 0.1026, "zt": {"t0_invalid": ["ADSLD26****1758", "ADSLD26****4172", "CZCZKD26****0218", "CZCZKD26****0603", "CZCZKD26****1113", "CZCZKD26****3012", "CZCZKD26****5545", "CZCZKD26****7505", "CZCZKD26****9620", "CZCZKD26****9625"], "t0_notrust": ["CZCZKD26****0603"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 200, "sk_dev299": 0}, "05006188": {"name": "廖罗养", "code": "05006188", "role": "装维经理", "cp": "陈梓城", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 416.0, "exist_score": 157.0, "total_score": 573.0, "last_total": 666.0, "mom": -0.1396, "value_rate": null, "new_gaotao": 2.8, "exist_gaotao": 2.25, "total_gaotao": 5.05, "gaotao_rate": 0.6312, "gap": 0.95, "gb_total": 6, "gb_success": 1, "gb_rate": 0.1667, "ko_dispatch": 69, "ko_convert": 7, "ko_rate": 0.1014, "zt": {"t0_invalid": ["ADSLD26****0248", "ADSLD26****6591", "ADSLD26****9446"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****6591", "ADSLD26****0248", "ADSLD26****9446"]}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 0}, "05006102": {"name": "马从柏", "code": "05006102", "role": "装维经理", "cp": "单飞", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 417.0, "total_score": 417.0, "last_total": 476.0, "mom": -0.1239, "value_rate": null, "new_gaotao": 0, "exist_gaotao": 6.0, "total_gaotao": 6.0, "gaotao_rate": 0.75, "gap": 0.0, "gb_total": 8, "gb_success": 1, "gb_rate": 0.125, "ko_dispatch": 51, "ko_convert": 2, "ko_rate": 0.0392, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 1}, "05006287": {"name": "马森林", "code": "05006287", "role": "装维经理", "cp": "禤铠畅", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 239.0, "exist_score": 195.0, "total_score": 434.0, "last_total": 670.0, "mom": -0.3522, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 2.75, "total_gaotao": 4.25, "gaotao_rate": 0.5312, "gap": 1.75, "gb_total": 5, "gb_success": 1, "gb_rate": 0.2, "ko_dispatch": 62, "ko_convert": 9, "ko_rate": 0.1452, "zt": {"t0_invalid": ["ADSLD26****5590"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 0, "sk_weixiao": 200, "sk_dev299": 0}, "05006170": {"name": "陈志钜", "code": "05006170", "role": "装维经理", "cp": "卫子杰", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 129.0, "exist_score": 382.0, "total_score": 511.0, "last_total": 406.0, "mom": 0.2586, "value_rate": null, "new_gaotao": 1.0, "exist_gaotao": 5.25, "total_gaotao": 6.25, "gaotao_rate": 0.7812, "gap": -0.25, "gb_total": 10, "gb_success": 1, "gb_rate": 0.1, "ko_dispatch": 37, "ko_convert": 6, "ko_rate": 0.1622, "zt": {"t0_invalid": ["ADSLD26****3962"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 200, "sk_dev299": 1}, "05010220": {"name": "何贵文", "code": "05010220", "role": "装维经理", "cp": "", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 199.0, "exist_score": 456.0, "total_score": 655.0, "last_total": 689.4, "mom": -0.0499, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 7.5, "total_gaotao": 9.0, "gaotao_rate": 1.125, "gap": -3.0, "gb_total": 8, "gb_success": 1, "gb_rate": 0.125, "ko_dispatch": 79, "ko_convert": 12, "ko_rate": 0.1519, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 0, "sk_weixiao": 300, "sk_dev299": 1}, "05010278": {"name": "冯海枫", "code": "05010278", "role": "装维经理", "cp": "丘培潜", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 0, "exist_score": 0, "total_score": 0, "last_total": 84.0, "mom": -1.0, "value_rate": null, "new_gaotao": 0, "exist_gaotao": 0, "total_gaotao": 0, "gaotao_rate": 0.0, "gap": 6.0, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": 0, "ko_convert": 0, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 0}, "05010515": {"name": "胡亮", "code": "05010515", "role": "装维经理", "cp": "张文聪", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 218.0, "exist_score": 210.0, "total_score": 428.0, "last_total": 380.0, "mom": 0.1263, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 2.5, "total_gaotao": 4.0, "gaotao_rate": 0.5, "gap": 2.0, "gb_total": 7, "gb_success": 1, "gb_rate": 0.1429, "ko_dispatch": 48, "ko_convert": 10, "ko_rate": 0.2083, "zt": {"t0_invalid": [], "t0_notrust": ["ADSLD26****1694", "ADSLD26****7137"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****1694", "ADSLD26****7137"]}, "sk_shangqi": 0, "sk_weixiao": 200, "sk_dev299": 1}, "05010514": {"name": "吴镒晖", "code": "05010514", "role": "装维经理", "cp": "潘晨光", "target_value": 0.0, "target_total": 8.0, "target_daliang": 6.0, "new_score": 237.0, "exist_score": 412.0, "total_score": 649.0, "last_total": 444.0, "mom": 0.4617, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 5.0, "total_gaotao": 6.5, "gaotao_rate": 0.8125, "gap": -0.5, "gb_total": 11, "gb_success": 1, "gb_rate": 0.0909, "ko_dispatch": 122, "ko_convert": 15, "ko_rate": 0.123, "zt": {"t0_invalid": ["ADSLD26****8008"], "t0_notrust": ["ADSLD26****2756", "ADSLD26****5652"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 1}, "16000104": {"name": "郑创佳", "code": "16000104", "role": "片区经理", "cp": "张禄", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 994.0, "exist_score": 160.0, "total_score": 1154.0, "last_total": 896.0, "mom": 0.2879, "value_rate": null, "new_gaotao": 7.0, "exist_gaotao": 3.0, "total_gaotao": 10.0, "gaotao_rate": 0.8333, "gap": 9.0, "gb_total": 8, "gb_success": 3, "gb_rate": 0.375, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****1739", "ADSLD26****8011"], "t0_notrust": ["ADSLD26****8011"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****3569", "ADSLD26****1739"]}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 1}, "23130077": {"name": "禤铠畅", "code": "23130077", "role": "片区经理", "cp": "马从柏", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 401.0, "exist_score": 70.0, "total_score": 471.0, "last_total": 1005.0, "mom": -0.5313, "value_rate": null, "new_gaotao": 2.5, "exist_gaotao": 1.0, "total_gaotao": 3.5, "gaotao_rate": 0.2917, "gap": 15.5, "gb_total": 6, "gb_success": 3, "gb_rate": 0.5, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****6162"]}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 0}, "16000097": {"name": "丘培潜", "code": "16000097", "role": "片区经理", "cp": "冯海枫", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 1992.0, "exist_score": 110.0, "total_score": 2102.0, "last_total": 2332.0, "mom": -0.0986, "value_rate": null, "new_gaotao": 12.8, "exist_gaotao": 1.5, "total_gaotao": 14.3, "gaotao_rate": 1.1917, "gap": 4.7, "gb_total": 19, "gb_success": 1, "gb_rate": 0.0526, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****2611", "ADSLD26****4064", "ADSLD26****4327", "CZCZKD26****0189", "CZCZKD26****3770", "CZCZKD26****5688", "CZCZKD26****9069"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****8846", "ADSLD26****2834", "ADSLD26****8243", "ADSLD26****7162", "ADSLD26****8231"]}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 0}, "23130213": {"name": "潘晨光", "code": "23130213", "role": "片区经理", "cp": "吴镒晖", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 635.0, "exist_score": 140.0, "total_score": 775.0, "last_total": 504.0, "mom": 0.5377, "value_rate": null, "new_gaotao": 4.5, "exist_gaotao": 1.75, "total_gaotao": 6.25, "gaotao_rate": 0.5208, "gap": 12.75, "gb_total": 9, "gb_success": 4, "gb_rate": 0.4444, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****9014"], "t0_notrust": ["ADSLD26****5228", "ADSLD26****9014"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****5228", "ADSLD26****4365"]}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 0}, "16000180": {"name": "张文聪", "code": "16000180", "role": "片区经理", "cp": "胡亮", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 202.0, "exist_score": 311.0, "total_score": 513.0, "last_total": 828.0, "mom": -0.3804, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 4.5, "total_gaotao": 6.0, "gaotao_rate": 0.5, "gap": 13.0, "gb_total": 7, "gb_success": 2, "gb_rate": 0.2857, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": ["ADSLD26****1533"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 0}, "16000186": {"name": "卫子杰", "code": "16000186", "role": "片区经理", "cp": "陈志钜", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 1577.0, "exist_score": 85.0, "total_score": 1662.0, "last_total": 2079.0, "mom": -0.2006, "value_rate": null, "new_gaotao": 9.7, "exist_gaotao": 1.0, "total_gaotao": 10.7, "gaotao_rate": 0.8917, "gap": 8.3, "gb_total": 19, "gb_success": 2, "gb_rate": 0.1053, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****2080", "CZCZKD26****2043", "CZCZKD26****4933", "CZCZKD26****6374", "CZCZKD26****7960", "CZCZKD26****8953", "CZCZKD26****9924"], "t0_notrust": ["ADSLD26****0936", "ADSLD26****1641", "ADSLD26****2080", "ADSLD26****2445", "ADSLD26****4582", "ADSLD26****8408"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****7507"]}, "sk_shangqi": 2, "sk_weixiao": 0, "sk_dev299": 0}, "23130308": {"name": "覃庆朋", "code": "23130308", "role": "片区经理", "cp": "", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 425.0, "exist_score": 50.0, "total_score": 475.0, "last_total": 605.0, "mom": -0.2149, "value_rate": null, "new_gaotao": 2.8, "exist_gaotao": 0.5, "total_gaotao": 3.3, "gaotao_rate": 0.275, "gap": 15.7, "gb_total": 5, "gb_success": 2, "gb_rate": 0.4, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": ["ADSLD26****5384"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****6270"]}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 0}, "23130331": {"name": "陈梓城", "code": "23130331", "role": "片区经理", "cp": "廖罗养", "target_value": 0.0, "target_total": 9.0, "target_daliang": 15.0, "new_score": 278.0, "exist_score": 81.0, "total_score": 359.0, "last_total": 398.0, "mom": -0.098, "value_rate": null, "new_gaotao": 2.0, "exist_gaotao": 1.0, "total_gaotao": 3.0, "gaotao_rate": 0.3333, "gap": 12.0, "gb_total": 4, "gb_success": 3, "gb_rate": 0.75, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": ["ADSLD26****9004"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 0}, "23130261": {"name": "刘思祺", "code": "23130261", "role": "片区经理", "cp": "邓锦安", "target_value": 0.0, "target_total": 18.0, "target_daliang": 10.0, "new_score": 0, "exist_score": 785.0, "total_score": 785.0, "last_total": 1287.0, "mom": -0.3901, "value_rate": null, "new_gaotao": 0, "exist_gaotao": 11.0, "total_gaotao": 11.0, "gaotao_rate": 0.6111, "gap": -1.0, "gb_total": 23, "gb_success": 0, "gb_rate": 0.0, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 1}, "21109005": {"name": "杨金燕", "code": "21109005", "role": "营业员", "cp": "-", "target_value": 0.0, "target_total": 21.0, "target_daliang": 0.0, "new_score": 528.0, "exist_score": 527.0, "total_score": 1055.0, "last_total": 1872.0, "mom": -0.4364, "value_rate": null, "new_gaotao": 3.5, "exist_gaotao": 9.0, "total_gaotao": 12.5, "gaotao_rate": 0.5952, "gap": null, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****0128"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": null, "sk_weixiao": null, "sk_dev299": null}, "21109017": {"name": "郭艺敏", "code": "21109017", "role": "营业员", "cp": "-", "target_value": 0.0, "target_total": 21.0, "target_daliang": 0.0, "new_score": 568.0, "exist_score": 150.0, "total_score": 718.0, "last_total": 551.0, "mom": 0.3031, "value_rate": null, "new_gaotao": 3.5, "exist_gaotao": 2.0, "total_gaotao": 5.5, "gaotao_rate": 0.2619, "gap": null, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****3345"], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****3345"]}, "sk_shangqi": null, "sk_weixiao": null, "sk_dev299": null}, "21109083": {"name": "陈文杰", "code": "21109083", "role": "营业员", "cp": "-", "target_value": 0.0, "target_total": 21.0, "target_daliang": 0.0, "new_score": 398.0, "exist_score": 673.0, "total_score": 1071.0, "last_total": 430.9, "mom": 1.4855, "value_rate": null, "new_gaotao": 3.0, "exist_gaotao": 11.5, "total_gaotao": 14.5, "gaotao_rate": 0.6905, "gap": null, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": null, "sk_weixiao": null, "sk_dev299": null}, "21111755": {"name": "黄佳敏", "code": "21111755", "role": "营业员", "cp": "-", "target_value": 0.0, "target_total": 21.0, "target_daliang": 0.0, "new_score": 199.0, "exist_score": 949.0, "total_score": 1148.0, "last_total": 721.0, "mom": 0.5922, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 15.25, "total_gaotao": 16.75, "gaotao_rate": 0.7976, "gap": null, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": null, "sk_weixiao": null, "sk_dev299": null}, "21111758": {"name": "梁继梅", "code": "21111758", "role": "营业员", "cp": "-", "target_value": 0.0, "target_total": 21.0, "target_daliang": 0.0, "new_score": 199.0, "exist_score": 492.0, "total_score": 691.0, "last_total": 531.0, "mom": 0.3013, "value_rate": null, "new_gaotao": 1.5, "exist_gaotao": 6.25, "total_gaotao": 7.75, "gaotao_rate": 0.369, "gap": null, "gb_total": 0, "gb_success": 0, "gb_rate": null, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": null, "sk_weixiao": null, "sk_dev299": null}, "23130285": {"name": "梁超", "code": "23130285", "role": "片区经理", "cp": "-", "target_value": 0.0, "target_total": 2.0, "target_daliang": 2.0, "new_score": 0, "exist_score": 151.0, "total_score": 151.0, "last_total": 114.0, "mom": 0.3246, "value_rate": null, "new_gaotao": 0, "exist_gaotao": 2.0, "total_gaotao": 2.0, "gaotao_rate": 1.0, "gap": 0.0, "gb_total": 3, "gb_success": 1, "gb_rate": 0.3333, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []}, "sk_shangqi": 1, "sk_weixiao": 0, "sk_dev299": 1}, "23130426": {"name": "黄逸辉", "code": "23130426", "role": "片区经理", "cp": "", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 490.0, "exist_score": 12.0, "total_score": 502.0, "last_total": 717.0, "mom": -0.2999, "value_rate": null, "new_gaotao": 3.3, "exist_gaotao": 0.25, "total_gaotao": 3.55, "gaotao_rate": 0.2958, "gap": 15.45, "gb_total": 4, "gb_success": 0, "gb_rate": 0.0, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****1961", "ADSLD26****4631"], "t0_notrust": ["ADSLD26****1961", "ADSLD26****9695"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****4631", "ADSLD26****9695"]}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 0}, "23130425": {"name": "张建辉", "code": "23130425", "role": "片区经理", "cp": "", "target_value": 0.0, "target_total": 12.0, "target_daliang": 19.0, "new_score": 594.0, "exist_score": 0, "total_score": 594.0, "last_total": 771.3, "mom": -0.2299, "value_rate": null, "new_gaotao": 4.0, "exist_gaotao": 0, "total_gaotao": 4.0, "gaotao_rate": 0.3333, "gap": 15.0, "gb_total": 6, "gb_success": 1, "gb_rate": 0.1667, "ko_dispatch": null, "ko_convert": null, "ko_rate": null, "zt": {"t0_invalid": ["ADSLD26****0263", "ADSLD26****3714", "ADSLD26****9584"], "t0_notrust": ["ADSLD26****1191", "ADSLD26****1861", "ADSLD26****7527"], "t1_invalid": [], "t1_notrust": [], "t0_notfull": ["ADSLD26****3714", "ADSLD26****1191", "ADSLD26****1861"]}, "sk_shangqi": 0, "sk_weixiao": 0, "sk_dev299": 0}}};
+var current = null;
+var ZT_LABEL={'t0_notfull':'T0 未满卡','t0_invalid':'T0 无效','t0_notrust':'T0 无托收','t1_invalid':'T1 无效','t1_notrust':'T1 无托收'};
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fmt(v, d){if(v===null||v===undefined||v===''||isNaN(v))return '<span class="na">-</span>';return Number(v).toFixed(d==null?1:d)}
+function pct(v){if(v===null||v===undefined||isNaN(v))return '<span class="na">-</span>';return (v*100).toFixed(1)+'%'}
+function momCls(v){if(v===null||v===undefined||isNaN(v))return 'na';return v>=0?'positive':'negative'}
+function rateCls(v){if(v===null||v===undefined||isNaN(v))return '';return v>=0.8?'positive':(v>=0.5?'warn':'negative')}
+
+function fillBar(id, rate){
+  var el=document.getElementById(id);
+  if(rate===null||rate===undefined||isNaN(rate)){el.style.width='0';el.style.background='#ccc';return}
+  var w=Math.min(100,rate*100);
+  el.style.width=w+'%';
+  el.style.background=rate>=0.8?'#2e7d32':(rate>=0.5?'#e65100':'#c62828');
+}
+
+function render(code){
+  var p=DATA.people[code]; if(!p)return;
+  current=code;
+  document.getElementById('personView').style.display='block';
+  document.getElementById('pName').textContent=p.name;
+  document.getElementById('pRole').textContent=p.role;
+  document.getElementById('pCode').textContent=p.code;
+  document.getElementById('pCp').textContent=p.cp||'-';
+
+  document.getElementById('kScore').innerHTML=fmt(p.total_score,1)+' / '+fmt(p.target_value,1);
+  fillBar('kScoreBar', p.value_rate);
+  document.getElementById('kGaotao').innerHTML=fmt(p.total_gaotao,1)+' / '+fmt(p.target_total,1);
+  fillBar('kGaotaoBar', p.gaotao_rate);
+  document.getElementById('kGap').innerHTML=p.gap===null?'<span class="na">-</span>':(p.gap>=0?fmt(p.gap,1):'<span class="negative">'+fmt(p.gap,1)+'</span>');
+  document.getElementById('kSk').innerHTML=p.sk_dev299===null||p.sk_dev299===undefined?'<span class="na">-</span>':fmt(p.sk_dev299,0);
+
+  document.getElementById('sNew').innerHTML=fmt(p.new_score,1);
+  document.getElementById('sExist').innerHTML=fmt(p.exist_score,1);
+  document.getElementById('sTotal').innerHTML=fmt(p.total_score,1)+' / '+fmt(p.target_value,1);
+  var mom=p.mom;
+  document.getElementById('sMom').innerHTML=mom===null?'<span class="na">-</span>':'<span class="'+momCls(mom)+'">'+(mom>=0?'+':'')+(mom*100).toFixed(1)+'%</span>';
+
+  document.getElementById('gNew').innerHTML=fmt(p.new_gaotao,1);
+  document.getElementById('gExist').innerHTML=fmt(p.exist_gaotao,1);
+  document.getElementById('gTotal').innerHTML=fmt(p.total_gaotao,1)+' / '+fmt(p.target_total,1);
+  document.getElementById('gGap').innerHTML=p.gap===null?'<span class="na">-</span>':fmt(p.gap,1);
+
+  document.getElementById('gbTotal').innerHTML=fmt(p.gb_total,0);
+  document.getElementById('gbRate').innerHTML=pct(p.gb_rate);
+
+  document.getElementById('koCount').innerHTML=p.ko_dispatch===null?'<span class="na">-</span>':fmt(p.ko_dispatch,0)+' / '+fmt(p.ko_convert,0);
+  var kr=p.ko_rate, avg=DATA.avg_ko_rate;
+  document.getElementById('koRate').innerHTML=(kr===null?'<span class="na">-</span>':pct(kr))+' <span style="font-size:11px;color:#888">vs 营服均值 '+pct(avg)+'</span>';
+
+  var zt=p.zt, ztHtml='';
+  var ztItems=[['t0_notfull','T0 未满卡'],['t0_invalid','T0 无效'],['t0_notrust','T0 无托收'],['t1_invalid','T1 无效'],['t1_notrust','T1 无托收']];
+  ztItems.forEach(function(it){
+    var arr=zt[it[0]]||[]; var n=arr.length;
+    ztHtml+='<div class="stat"><div class="lab">'+it[1]+'</div><div class="val '+(n>0?'warn':'')+'">'+
+      (n>0?'<span class="click" onclick="showZt(\''+code+'\',\''+it[0]+'\')">'+n+' 条</span>':'<span class="na">0</span>')+'</div></div>';
+  });
+  document.getElementById('ztList').innerHTML=ztHtml;
+
+  document.getElementById('skShangqi').innerHTML=fmt(p.sk_shangqi,0);
+  document.getElementById('skWeixiao').innerHTML=fmt(p.sk_weixiao,1);
+  document.getElementById('skDev299').innerHTML=fmt(p.sk_dev299,0);
+}
+
+function showZt(code, key){
+  var arr=DATA.people[code].zt[key]||[];
+  document.getElementById('modalTitle').textContent=DATA.people[code].name+' · '+(ZT_LABEL[key]||key)+' 异常接入号（'+arr.length+' 条）';
+  var body=document.getElementById('modalBody');
+  body.innerHTML=arr.map(function(x){return '<tr><td>'+esc(x)+'</td></tr>'}).join('')||'<tr><td class="empty">无</td></tr>';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none'}
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal()});
+
+var search=document.getElementById('search'), dd=document.getElementById('dropdown');
+var filtered=[], activeIdx=-1;
+function updateDrop(){
+  var q=search.value.trim();
+  if(!q){dd.style.display='none';return}
+  filtered=DATA.order.map(function(c){return DATA.people[c]}).filter(function(p){return p.name.indexOf(q)>=0||p.code.indexOf(q)>=0});
+  if(!filtered.length){dd.style.display='none';return}
+  activeIdx=0;
+  dd.innerHTML=filtered.map(function(p,i){return '<div class="item'+(i===0?' active':'')+'" data-code="'+p.code+'">'+esc(p.name)+' <span style="color:#aaa;font-size:11px">'+esc(p.role)+'</span></div>'}).join('');
+  dd.style.display='block';
+}
+function pick(code){
+  search.value=DATA.people[code].name;
+  dd.style.display='none';
+  render(code);
+}
+search.addEventListener('input',updateDrop);
+search.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){if(filtered[activeIdx])pick(filtered[activeIdx].code)}
+  else if(e.key==='ArrowDown'&&filtered.length){activeIdx=(activeIdx+1)%filtered.length;mark()}
+  else if(e.key==='ArrowUp'&&filtered.length){activeIdx=(activeIdx-1+filtered.length)%filtered.length;mark()}
+});
+dd.addEventListener('click',function(e){var it=e.target.closest('.item');if(it)pick(it.getAttribute('data-code'))});
+function mark(){Array.prototype.forEach.call(dd.children,function(el,i){el.className='item'+(i===activeIdx?' active':'')})}
+document.addEventListener('click',function(e){if(!search.contains(e.target)&&!dd.contains(e.target))dd.style.display='none'});
+
+document.getElementById('benchmark').textContent=DATA.benchmark;
+document.getElementById('targetMonth').textContent=DATA.target_month||'-';
+document.getElementById('updatedAt').textContent=DATA.updated_at;
+var urlName=new URLSearchParams(location.search).get('name');
+var hit=urlName?DATA.order.map(function(c){return DATA.people[c]}).find(function(p){return p.name===urlName}):null;
+if(hit){search.value=hit.name;render(hit.code)}
+</script>
+</body>
+</html>
