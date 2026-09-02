@@ -67,6 +67,50 @@ def _infer_data_month():
 
 data_date = _infer_data_month()
 
+def _list_month(fp):
+    """返回清单文件报表日期列的最新月份（YYYY-MM），无日期或文件缺失返回 None。"""
+    if not os.path.exists(fp):
+        return None
+    best = None
+    try:
+        wb = openpyxl.load_workbook(fp, data_only=True, read_only=True)
+        for ws in wb.worksheets[:3]:
+            date_cols = set()
+            for r in range(1, 4):
+                for c in range(1, min(ws.max_column, 60) + 1):
+                    h = str(ws.cell(r, c).value or '').strip()
+                    if h in ('录入时间', '统计日期', '竣工日期'):
+                        date_cols.add(c)
+            if not date_cols:
+                continue
+            for c in date_cols:
+                for row in ws.iter_rows(min_row=2, max_row=30, min_col=c, max_col=c, values_only=True):
+                    v = row[0]
+                    m = None
+                    if isinstance(v, (datetime, date)):
+                        m = v.strftime('%Y-%m')
+                    elif isinstance(v, int) and 20250101 <= v <= 20261231:
+                        m = f"{v // 10000:04d}-{(v // 100) % 100:02d}"
+                    elif isinstance(v, str):
+                        s = v.strip()
+                        if len(s) >= 7 and s[4] == '-' and s[:4].isdigit():
+                            m = s[:7]
+                        elif len(s) == 8 and s.isdigit() and 20250101 <= int(s) <= 20261231:
+                            m = f"{int(s) // 10000:04d}-{(int(s) // 100) % 100:02d}"
+                    if m and (not best or m > best):
+                        best = m
+        wb.close()
+    except Exception:
+        return None
+    return best
+
+_benchmark_month = data_date[:7]
+_exist_ok = _list_month(os.path.join(DATA_DIR, "存量高套竣工清单.xlsx")) == _benchmark_month
+_gb_ok = _list_month(os.path.join(DATA_DIR, "杠保清单.xlsx")) == _benchmark_month
+_ko_ok = _list_month(os.path.join(DATA_DIR, "关键一单清单.xlsx")) == _benchmark_month
+_zt_ok = _list_month(os.path.join(DATA_DIR, "质态相关清单.xlsx")) == _benchmark_month
+print(f"  基准月份: {_benchmark_month} 存量={_exist_ok} 杠保={_gb_ok} 关键一单={_ko_ok} 质态={_zt_ok}")
+
 def _header_cols(ws, aliases, rows=(1, 2, 3)):
     """Locate Chinese/technical header columns in the first few rows."""
     out = {}
@@ -151,6 +195,10 @@ for r in range(3 if _exist_has_technical_row else 2, ws3.max_row + 1):
     if isinstance(dv, (datetime, date)):
         _current_dates_exist.append(dv if isinstance(dv, date) else dv.date())
 wb3.close()
+if not _exist_ok:
+    exist_install.clear()
+    _current_dates_exist = []
+    print(f"  ⚠️ 存量清单不是{_benchmark_month}月份，本项留空")
 
 # ============================================================
 # 4. 上月新装/存量（独立文件）→ 上月价值积分
@@ -213,6 +261,9 @@ for r in range(3, ws4.max_row + 1):
     if is_gb == 1:
         gangbao[name]['success'] += 1
 wb4.close()
+if not _gb_ok:
+    gangbao.clear()
+    print(f"  ⚠️ 杠保清单不是{_benchmark_month}月份，本项留空")
 
 # ============================================================
 # 6. 关键一单清单 → 仅装维经理
@@ -258,6 +309,9 @@ for r in range(2, ws5.max_row + 1):
         if real_score > 0 or finish_score > 0:
             key_order[name]['zhi_convert'] += 1
 wb5.close()
+if not _ko_ok:
+    key_order.clear()
+    print(f"  ⚠️ 关键一单清单不是{_benchmark_month}月份，本项留空")
 
 # ============================================================
 # 7. 质态相关清单
@@ -292,6 +346,9 @@ for sheet_name in wb6.sheetnames:
         elif month in ('202602', '202601', '202512'):
             if valid == 0: zhitai[name]['t6_invalid'] += 1
 wb6.close()
+if not _zt_ok:
+    zhitai.clear()
+    print(f"  ⚠️ 质态相关清单不是{_benchmark_month}月份，本项留空")
 
 # ============================================================
 # 8. 融合T+0未满卡（质态相关清单 Sheet4）
@@ -311,6 +368,8 @@ if ws14_idx:
         if is_full not in ('是', '1'):
             t0_notfull[name] += 1
 wb_zt.close()
+if not _zt_ok:
+    t0_notfull.clear()
 
 #print("All data loaded, generating dashboard...")
 
@@ -327,8 +386,8 @@ for p in personnel:
     
     # 价值积分
     p['new_score'] = round(ni.get('value_score', 0), 2)
-    p['exist_score'] = round(ei.get('value_score', 0), 2)
-    p['total_score'] = round(p['new_score'] + p['exist_score'], 2)
+    p['exist_score'] = round(ei.get('value_score', 0), 2) if _exist_ok else None
+    p['total_score'] = round(p['new_score'] + (p['exist_score'] or 0), 2)
     p['last_total'] = round(last_new.get(n, 0) + last_exist.get(n, 0), 2)
     
     # 环比（按日均计算）
@@ -351,22 +410,34 @@ for p in personnel:
     
     # 高套
     p['new_gaotao'] = round(ni.get('gaotao', 0), 2)
-    p['exist_gaotao'] = round(ei.get('gaotao', 0), 2)
-    p['total_gaotao'] = round(p['new_gaotao'] + p['exist_gaotao'], 2)
+    p['exist_gaotao'] = round(ei.get('gaotao', 0), 2) if _exist_ok else None
+    p['total_gaotao'] = round(p['new_gaotao'] + (p['exist_gaotao'] or 0), 2)
     
     # 杠保
-    gb_total = gb.get('total', 0)
-    gb_success = gb.get('success', 0)
-    p['gb_total'] = gb_total
-    p['gb_success'] = gb_success
-    p['gb_rate'] = round(gb_success / gb_total, 4) if gb_total > 0 else None
+    if _gb_ok:
+        gb_total = gb.get('total', 0)
+        gb_success = gb.get('success', 0)
+        p['gb_total'] = gb_total
+        p['gb_success'] = gb_success
+        p['gb_rate'] = round(gb_success / gb_total, 4) if gb_total > 0 else None
+    else:
+        p['gb_total'] = None
+        p['gb_success'] = None
+        p['gb_rate'] = None
     
     # 关键一单（仅装维经理）
-    p['dispatch'] = ko.get('dispatch', 0)
-    p['convert'] = ko.get('convert', 0)
-    p['convert_rate'] = round(p['convert'] / p['dispatch'], 4) if p['dispatch'] > 0 else None
-    p['zhi_dispatch'] = ko.get('zhi_dispatch', 0)
-    p['zhi_convert'] = ko.get('zhi_convert', 0)
+    if _ko_ok:
+        p['dispatch'] = ko.get('dispatch', 0)
+        p['convert'] = ko.get('convert', 0)
+        p['convert_rate'] = round(p['convert'] / p['dispatch'], 4) if p['dispatch'] > 0 else None
+        p['zhi_dispatch'] = ko.get('zhi_dispatch', 0)
+        p['zhi_convert'] = ko.get('zhi_convert', 0)
+    else:
+        p['dispatch'] = None
+        p['convert'] = None
+        p['convert_rate'] = None
+        p['zhi_dispatch'] = None
+        p['zhi_convert'] = None
     if p['role'] != '装维经理':
         p['dispatch'] = None
         p['convert'] = None
@@ -374,30 +445,34 @@ for p in personnel:
         p['zhi_dispatch'] = None
         p['zhi_convert'] = None
     
-    # T+N质态
-    p['t1_invalid'] = zt.get('t1_invalid', 0)
-    p['t3_invalid'] = zt.get('t3_invalid', 0)
-    p['t6_invalid'] = zt.get('t6_invalid', 0)
-    
-    # 质态相关
-    p['t0_notfull'] = t0_notfull.get(n, 0)
-    p['t0_invalid'] = zt.get('t0_invalid', 0)
-    p['t0_notrust'] = zt.get('t0_notrust', 0)
-    p['t1_invalid_2'] = zt.get('t1_invalid', 0)
-    p['t1_notrust'] = zt.get('t1_notrust', 0)
-    p['tm1_in'] = zt.get('tm1_in', 0)
-    
-    # T+1有效率
-    total_t1 = last_new.get(n, 0) + last_exist.get(n, 0)
-    total_t1_count = 1  # placeholder
-    # Actually for T+1有效率, need total accounts for this person
-    # Let me approximate
-    t1_total = zt.get('t1_invalid', 0) + 1  # avoid div by 0
-    p['t1_rate'] = round(1 - (zt.get('t1_invalid', 0) / t1_total), 4) if t1_total > 1 else None
+    # T+N质态 / 质态相关
+    if _zt_ok:
+        p['t1_invalid'] = zt.get('t1_invalid', 0)
+        p['t3_invalid'] = zt.get('t3_invalid', 0)
+        p['t6_invalid'] = zt.get('t6_invalid', 0)
+        p['t0_notfull'] = t0_notfull.get(n, 0)
+        p['t0_invalid'] = zt.get('t0_invalid', 0)
+        p['t0_notrust'] = zt.get('t0_notrust', 0)
+        p['t1_invalid_2'] = zt.get('t1_invalid', 0)
+        p['t1_notrust'] = zt.get('t1_notrust', 0)
+        p['tm1_in'] = zt.get('tm1_in', 0)
+        t1_total = zt.get('t1_invalid', 0) + 1
+        p['t1_rate'] = round(1 - (zt.get('t1_invalid', 0) / t1_total), 4) if t1_total > 1 else None
+    else:
+        p['t1_invalid'] = None
+        p['t3_invalid'] = None
+        p['t6_invalid'] = None
+        p['t0_notfull'] = None
+        p['t0_invalid'] = None
+        p['t0_notrust'] = None
+        p['t1_invalid_2'] = None
+        p['t1_notrust'] = None
+        p['tm1_in'] = None
+        p['t1_rate'] = None
     
     # 完成率、缺口
-    p['completion_rate'] = round(p['total_gaotao'] / p['target_total'], 4) if p['target_total'] > 0 else None
-    p['daliang_gap'] = round(p['target_daliang'] - p['total_gaotao'], 2) if p['target_daliang'] > 0 else None
+    p['completion_rate'] = round(p['total_gaotao'] / p['target_total'], 4) if p['target_total'] > 0 and p['total_gaotao'] is not None else None
+    p['daliang_gap'] = round(p['target_daliang'] - p['total_gaotao'], 2) if p['target_daliang'] > 0 and p['total_gaotao'] is not None else None
 
 # ============================================================
 # 10. 生成 HTML 看板
@@ -434,14 +509,61 @@ def _scan(fp, col, skip=2, sheet_kw=None):
     wb.close()
     return latest.strftime('%m/%d') if latest else '-'
 
+def _scan_by_header(fp, header=('竣工日期', '统计日期', '录入时间'), skip=2):
+    '''按表头找日期列并扫描最新日期'''
+    if not os.path.exists(fp):
+        return '-'
+    try:
+        wb = openpyxl.load_workbook(fp, data_only=True, read_only=True)
+    except Exception:
+        return '-'
+    latest = None
+    for ws in wb.worksheets[:3]:
+        col = None
+        for r in range(1, 4):
+            for c in range(1, min(ws.max_column, 60) + 1):
+                if str(ws.cell(r, c).value or '').strip() in header:
+                    col = c
+                    break
+            if col:
+                break
+        if not col:
+            continue
+        for row in ws.iter_rows(min_row=skip, max_row=30, min_col=col, max_col=col, values_only=True):
+            v = row[0]
+            d = None
+            if isinstance(v, (_dt, datetime)):
+                d = v.date() if isinstance(v, datetime) else v
+            elif isinstance(v, int) and 19000000 <= v <= 21000000:
+                try:
+                    d = datetime.strptime(str(v), '%Y%m%d').date()
+                except ValueError:
+                    pass
+            elif isinstance(v, str) and len(v) >= 10:
+                try:
+                    d = datetime.strptime(v[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    try:
+                        d = datetime.strptime(v[:19], '%Y-%m-%d %H:%M:%S').date()
+                    except ValueError:
+                        pass
+            if d and d >= _dt(2026, 1, 1) and (not latest or d > latest):
+                latest = d
+    wb.close()
+    return latest.strftime('%m/%d') if latest else '-'
+
 _dates = {}
 _dates['new_install'] = _scan(os.path.join(DATA_DIR, '新装高套竣工清单.xlsx'), 8, 3)
-_dates['exist_install'] = _scan(os.path.join(DATA_DIR, '存量高套竣工清单.xlsx'), 11, 3)
+_dates['exist_install'] = _scan_by_header(os.path.join(DATA_DIR, '存量高套竣工清单.xlsx'))
 _dates['last_new'] = _scan(os.path.join(DATA_DIR, '上月新装高套清单.xlsx'), 8, 3)
 _dates['last_exist'] = _scan(os.path.join(DATA_DIR, '上月存量高套清单.xlsx'), 15, 2)
 _dates['gb'] = _scan(os.path.join(DATA_DIR, '杠保清单.xlsx'), 4, 3)
 _dates['zt'] = _scan(os.path.join(DATA_DIR, '质态相关清单.xlsx'), 2, 3, sheet_kw='融合质态T+0')
 _dates['ko'] = _scan(os.path.join(DATA_DIR, '关键一单清单.xlsx'), 2, 2)
+if not _exist_ok: _dates['exist_install'] = '-'
+if not _gb_ok: _dates['gb'] = '-'
+if not _ko_ok: _dates['ko'] = '-'
+if not _zt_ok: _dates['zt'] = '-'
 _date_status = f"新装~{_dates['new_install']} 存量~{_dates['exist_install']} 杠保~{_dates['gb']} 质态{_dates['zt']} 关键一单~{_dates['ko']}"
 _date_status += f" 目标月份~{target_month or '未设置'}"
 # ============================================================
@@ -467,6 +589,10 @@ def fmt_mom(v):
     if v is None: return '<td class="tr na">-</td>'
     cls = 'p' if v >= 0 else 'n'
     return f'<td class="tr {cls}">{v*100:>7.1f}%</td>'
+
+def fmt_int(v):
+    if v is None: return '-'
+    return str(int(v))
 
 html = f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -620,8 +746,8 @@ for role_name in ['装维经理', '片区经理', '营业员']:
         html += fmt_score(p['daliang_gap'])
         
         # ③ 杠保
-        html += f'<td class="tr">{p["gb_success"]}</td>'
-        html += f'<td class="tr">{p["gb_total"]}</td>'
+        html += f'<td class="tr">{fmt_int(p["gb_success"])}</td>'
+        html += f'<td class="tr">{fmt_int(p["gb_total"])}</td>'
         if p["gb_rate"] is not None:
             r = p["gb_rate"]
             cls = "rate-high" if r >= 0.5 else "rate-mid" if r >= 0.2 else "rate-low"
@@ -639,11 +765,11 @@ for role_name in ['装维经理', '片区经理', '营业员']:
         
         # ⑥ 质态相关
         zt_s = ' style="background:#ffecb3;color:#e65100;font-weight:700"'
-        html += f'<td class="tr"{zt_s if p["t0_notfull"] > 0 else ""}>{p["t0_notfull"]}</td>'
-        html += f'<td class="tr"{zt_s if p["t0_invalid"] > 0 else ""}>{p["t0_invalid"]}</td>'
-        html += f'<td class="tr"{zt_s if p["t0_notrust"] > 0 else ""}>{p["t0_notrust"]}</td>'
-        html += f'<td class="tr"{zt_s if p["t1_invalid_2"] > 0 else ""}>{p["t1_invalid_2"]}</td>'
-        html += f'<td class="tr"{zt_s if p["t1_notrust"] > 0 else ""}>{p["t1_notrust"]}</td>'
+        html += f'<td class="tr"{zt_s if (p["t0_notfull"] or 0) > 0 else ""}>{fmt_int(p["t0_notfull"])}</td>'
+        html += f'<td class="tr"{zt_s if (p["t0_invalid"] or 0) > 0 else ""}>{fmt_int(p["t0_invalid"])}</td>'
+        html += f'<td class="tr"{zt_s if (p["t0_notrust"] or 0) > 0 else ""}>{fmt_int(p["t0_notrust"])}</td>'
+        html += f'<td class="tr"{zt_s if (p["t1_invalid_2"] or 0) > 0 else ""}>{fmt_int(p["t1_invalid_2"])}</td>'
+        html += f'<td class="tr"{zt_s if (p["t1_notrust"] or 0) > 0 else ""}>{fmt_int(p["t1_notrust"])}</td>'
         
         html += '</tr>'
     
@@ -725,7 +851,7 @@ for role_name in ['装维经理', '片区经理', '营业员']:
             rows.append('</div>')
     
     # 5. 质态关注
-    zt_total = lambda p: (p.get('t0_notfull', 0) + p.get('t0_invalid', 0) + p.get('t0_notrust', 0) + p.get('t1_invalid_2', 0) + p.get('t1_notrust', 0))
+    zt_total = lambda p: ((p.get('t0_notfull') or 0) + (p.get('t0_invalid') or 0) + (p.get('t0_notrust') or 0) + (p.get('t1_invalid_2') or 0) + (p.get('t1_notrust') or 0))
     zt_people = sorted(group, key=lambda p: zt_total(p), reverse=True)
     zt_need = [p for p in zt_people if zt_total(p) > 0]
     if zt_need:
@@ -733,11 +859,11 @@ for role_name in ['装维经理', '片区经理', '营业员']:
         rows.append('<div style="font-weight:600;color:#1a237e;border-bottom:1px solid #e8eaf6;padding:2px 0;margin-bottom:3px;"><span style="display:inline-block;width:18px;height:18px;background:#1a237e;color:#fff;border-radius:3px;text-align:center;line-height:18px;font-size:10px;margin-right:5px;">' + chr(9316) + '</span>质态关注（需要提醒的人员）</div>')
         for p in zt_need[:2]:
             fields = []
-            if p['t0_notfull'] > 0: fields.append(f'T0未满卡{p["t0_notfull"]}')
-            if p['t0_invalid'] > 0: fields.append(f'T0无效{p["t0_invalid"]}')
-            if p['t0_notrust'] > 0: fields.append(f'T0无托收{p["t0_notrust"]}')
-            if p['t1_invalid_2'] > 0: fields.append(f'T1无效{p["t1_invalid_2"]}')
-            if p['t1_notrust'] > 0: fields.append(f'T1无托收{p["t1_notrust"]}')
+            if (p['t0_notfull'] or 0) > 0: fields.append(f'T0未满卡{p["t0_notfull"] or 0}')
+            if (p['t0_invalid'] or 0) > 0: fields.append(f'T0无效{p["t0_invalid"] or 0}')
+            if (p['t0_notrust'] or 0) > 0: fields.append(f'T0无托收{p["t0_notrust"] or 0}')
+            if (p['t1_invalid_2'] or 0) > 0: fields.append(f'T1无效{p["t1_invalid_2"] or 0}')
+            if (p['t1_notrust'] or 0) > 0: fields.append(f'T1无托收{p["t1_notrust"] or 0}')
             detail = '、'.join(fields)
             rows.append(f'<div style="display:flex;gap:16px;padding-left:24px;"><span style="color:#c62828;">⚠️ <b>{p["name"]}</b> 共{zt_total(p)}项异常：{detail}</span></div>')
         rows.append('</div>')

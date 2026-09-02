@@ -46,6 +46,43 @@ def get_data_month(fp):
     except: pass
     return None
 
+def get_file_month(fp):
+    """返回清单文件报表日期列的最新月份（YYYY-MM），无日期或文件缺失返回 None。"""
+    if not os.path.exists(fp):
+        return None
+    best = None
+    try:
+        wb = openpyxl.load_workbook(fp, data_only=True, read_only=True)
+        for ws in wb.worksheets[:3]:
+            date_cols = set()
+            for r in range(1, 4):
+                for c in range(1, min(ws.max_column, 60) + 1):
+                    h = str(ws.cell(r, c).value or '').strip()
+                    if h in ('录入时间', '统计日期', '竣工日期'):
+                        date_cols.add(c)
+            if not date_cols:
+                continue
+            for c in date_cols:
+                for row in ws.iter_rows(min_row=2, max_row=30, min_col=c, max_col=c, values_only=True):
+                    v = row[0]
+                    m = None
+                    if isinstance(v, (dt, date)):
+                        m = v.strftime('%Y-%m')
+                    elif isinstance(v, int) and 20250101 <= v <= 20261231:
+                        m = f"{v // 10000:04d}-{(v // 100) % 100:02d}"
+                    elif isinstance(v, str):
+                        s = v.strip()
+                        if len(s) >= 7 and s[4] == '-' and s[:4].isdigit():
+                            m = s[:7]
+                        elif len(s) == 8 and s.isdigit() and 20250101 <= int(s) <= 20261231:
+                            m = f"{int(s) // 10000:04d}-{(int(s) // 100) % 100:02d}"
+                    if m and (not best or m > best):
+                        best = m
+        wb.close()
+    except Exception:
+        return None
+    return best
+
 def github_api_request(method, path, token, payload=None):
     req = urllib.request.Request(
         'https://api.github.com' + path,
@@ -185,6 +222,45 @@ def main():
                     if fn.endswith('.xlsx'):
                         shutil.copy2(os.path.join(archive_dir, fn), os.path.join(DATA_DIR, fn))
                 print(f"✅ 从存档 {archive_dir} 恢复数据")
+
+    # ★ 清单月份一致性：以新装竣工清单月份为基准，其他清单跨月则回退或留空
+    bench_month = get_data_month(os.path.join(DATA_DIR, '新装高套竣工清单.xlsx'))
+    if bench_month:
+        expected = f"2026-{bench_month:02d}"
+        for f in ['新装高套竣工清单.xlsx', '存量高套竣工清单.xlsx', '关键一单清单.xlsx',
+                  '杠保清单.xlsx', '质态相关清单.xlsx', '宽带离网清单.xlsx']:
+            fp = os.path.join(DATA_DIR, f)
+            if not os.path.exists(fp):
+                continue
+            fm = get_file_month(fp)
+            if fm is None or fm == expected:
+                continue
+            print(f"⚠️ {f} 数据月份 {fm} 与基准 {expected} 不一致")
+            restored = False
+            if f in tmp_backup:
+                tmp = os.path.join(DATA_DIR, '_monthcheck_tmp.xlsx')
+                with open(tmp, 'wb') as t:
+                    t.write(tmp_backup[f])
+                if get_file_month(tmp) == expected:
+                    shutil.move(tmp, fp)
+                    restored = True
+                    print("  ✅ 已回退到基准月份版本（原备份）")
+                else:
+                    os.remove(tmp)
+            if not restored:
+                arc = os.path.join(BACKUP_DIR, expected, f)
+                if os.path.exists(arc) and get_file_month(arc) == expected:
+                    shutil.copy2(arc, fp)
+                    restored = True
+                    print(f"  ✅ 已从存档回退: {arc}")
+            if not restored:
+                dated = os.path.join(DATA_DIR, f.replace('.xlsx', f'_{expected.replace("-", "")}.xlsx'))
+                if os.path.exists(dated) and get_file_month(dated) == expected:
+                    shutil.copy2(dated, fp)
+                    restored = True
+                    print(f"  ✅ 已从按月归档回退: {dated}")
+            if not restored:
+                print(f"  ⚠️ 无{expected}月版本，保留当前文件，看板对应板块将留空")
 
     # 商客发展情况：下载最新全渠道做商客战报并提取
     print("🔄 商客发展情况...")
