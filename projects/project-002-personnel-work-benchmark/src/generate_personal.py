@@ -135,13 +135,15 @@ def main():
     exist_install = defaultdict(lambda: {"score": 0.0, "gaotao": 0.0})
     last_new = defaultdict(float)
     last_exist = defaultdict(float)
+    new_accs = defaultdict(list)
+    exist_accs = defaultdict(list)
     cur_dates, last_dates = [], []
 
     fp = os.path.join(DATA_DIR, "新装高套竣工清单.xlsx")
     wb = openpyxl.load_workbook(fp, data_only=True)
     ws = wb.active
-    cols = _header_cols(ws, {"揽装人": "name", "套餐价值": "value", "折算后": "gaotao", "竣工日期": "date"})
-    cn, cv, cg, cd = cols.get("name", 11), cols.get("value", 15), cols.get("gaotao", 26), cols.get("date", 8)
+    cols = _header_cols(ws, {"揽装人": "name", "套餐价值": "value", "折算后": "gaotao", "竣工日期": "date", "接入号": "acc"})
+    cn, cv, cg, cd, ca = cols.get("name", 11), cols.get("value", 15), cols.get("gaotao", 26), cols.get("date", 8), cols.get("acc", 4)
     tech = any(str(ws.cell(2, c).value or "").strip() == "sales_name" for c in range(1, ws.max_column + 1))
     for r in range(3 if tech else 2, ws.max_row + 1):
         name = str(ws.cell(r, cn).value or "").strip()
@@ -152,6 +154,9 @@ def main():
             continue
         new_install[name]["score"] += safe_float(ws.cell(r, cv).value) or 0
         new_install[name]["gaotao"] += safe_float(ws.cell(r, cg).value) or 0
+        acc = str(ws.cell(r, ca).value or "").strip()
+        if acc:
+            new_accs[name].append(acc)
         if d:
             cur_dates.append(d)
     wb.close()
@@ -163,8 +168,9 @@ def main():
         cols = _header_cols(ws, {
             "揽装人": "name", "提值幅度": "value", "高套折算量": "gaotao", "竣工日期": "date",
             "sj_salestaff_name": "name", "jzbh_value": "value", "gt_zsl": "gaotao", "sj_subs_stat_date": "date",
+            "接入号": "acc",
         })
-        cn, cv, cg, cd = cols.get("name", 10), cols.get("value", 16), cols.get("gaotao", 27), cols.get("date", 11)
+        cn, cv, cg, cd, ca = cols.get("name", 10), cols.get("value", 16), cols.get("gaotao", 27), cols.get("date", 11), cols.get("acc", 6)
         tech = any(str(ws.cell(2, c).value or "").strip() == "sj_salestaff_name" for c in range(1, ws.max_column + 1))
         for r in range(3 if tech else 2, ws.max_row + 1):
             name = str(ws.cell(r, cn).value or "").strip()
@@ -175,6 +181,9 @@ def main():
                 continue
             exist_install[name]["score"] += safe_float(ws.cell(r, cv).value) or 0
             exist_install[name]["gaotao"] += safe_float(ws.cell(r, cg).value) or 0
+            acc = str(ws.cell(r, ca).value or "").strip()
+            if acc:
+                exist_accs[name].append(acc)
             if d:
                 cur_dates.append(d)
         wb.close()
@@ -356,6 +365,8 @@ def main():
             "new_gaotao": new_gaotao,
             "exist_gaotao": exist_gaotao,
             "total_gaotao": total_gaotao,
+            "new_accs": list(dict.fromkeys(new_accs.get(name, []))),
+            "exist_accs": list(dict.fromkeys(exist_accs.get(name, []))),
             "gaotao_rate": gaotao_rate,
             "gap": gap,
             "gb_total": g.get("total", 0) if gb_ok else None,
@@ -469,7 +480,6 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
       <div class="kpi"><div class="num" id="kScore"></div><div class="label">价值积分 · 目标完成</div><div class="bar"><i id="kScoreBar"></i></div></div>
       <div class="kpi"><div class="num" id="kGaotao"></div><div class="label">增存高套 · 目标完成</div><div class="bar"><i id="kGaotaoBar"></i></div></div>
       <div class="kpi"><div class="num" id="kGap"></div><div class="label">达量缺口</div></div>
-      <div class="kpi"><div class="num" id="kSk"></div><div class="label">商客 299+ 发展量</div></div>
     </div>
 
     <div class="card">
@@ -483,10 +493,10 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
     </div>
 
     <div class="card">
-      <div class="sec-title">② 增存高套</div>
+      <div class="sec-title">② 增存高套（点击折算数查看接入号）</div>
       <div class="grid2">
-        <div class="stat"><div class="lab">新装折算</div><div class="val" id="gNew"></div></div>
-        <div class="stat"><div class="lab">存量折算</div><div class="val" id="gExist"></div></div>
+        <div class="stat"><div class="lab">新装折算（点击查看接入号）</div><div class="val" id="gNew"></div></div>
+        <div class="stat"><div class="lab">存量折算（点击查看接入号）</div><div class="val" id="gExist"></div></div>
         <div class="stat"><div class="lab">总计 / 目标</div><div class="val" id="gTotal"></div></div>
         <div class="stat"><div class="lab">达量目标 / 缺口</div><div class="val" id="gGap"></div></div>
       </div>
@@ -495,7 +505,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
     <div class="card">
       <div class="sec-title">③ 杠保</div>
       <div class="grid2">
-        <div class="stat"><div class="lab">杠保总量</div><div class="val" id="gbTotal"></div></div>
+        <div class="stat"><div class="lab">杠保成功量</div><div class="val" id="gbSuccess"></div></div>
         <div class="stat"><div class="lab">成功率</div><div class="val" id="gbRate"></div></div>
       </div>
     </div>
@@ -565,7 +575,6 @@ function render(code){
   document.getElementById('kGaotao').innerHTML=fmt(p.total_gaotao,1)+' / '+fmt(p.target_total,1);
   fillBar('kGaotaoBar', p.gaotao_rate);
   document.getElementById('kGap').innerHTML=p.gap===null?'<span class="na">-</span>':(p.gap>=0?fmt(p.gap,1):'<span class="negative">'+fmt(p.gap,1)+'</span>');
-  document.getElementById('kSk').innerHTML=p.sk_dev299===null||p.sk_dev299===undefined?'<span class="na">-</span>':fmt(p.sk_dev299,0);
 
   document.getElementById('sNew').innerHTML=fmt(p.new_score,1);
   document.getElementById('sExist').innerHTML=fmt(p.exist_score,1);
@@ -573,12 +582,12 @@ function render(code){
   var mom=p.mom;
   document.getElementById('sMom').innerHTML=mom===null?'<span class="na">-</span>':'<span class="'+momCls(mom)+'">'+(mom>=0?'+':'')+(mom*100).toFixed(1)+'%</span>';
 
-  document.getElementById('gNew').innerHTML=fmt(p.new_gaotao,1);
-  document.getElementById('gExist').innerHTML=fmt(p.exist_gaotao,1);
+  document.getElementById('gNew').innerHTML=(p.new_accs&&p.new_accs.length)?'<span class="click" onclick="showAcc(\''+code+'\',\'new_accs\',\'新装接入号\')">'+fmt(p.new_gaotao,1)+'</span>':fmt(p.new_gaotao,1);
+  document.getElementById('gExist').innerHTML=(p.exist_accs&&p.exist_accs.length)?'<span class="click" onclick="showAcc(\''+code+'\',\'exist_accs\',\'存量接入号\')">'+fmt(p.exist_gaotao,1)+'</span>':fmt(p.exist_gaotao,1);
   document.getElementById('gTotal').innerHTML=fmt(p.total_gaotao,1)+' / '+fmt(p.target_total,1);
   document.getElementById('gGap').innerHTML=p.gap===null?'<span class="na">-</span>':fmt(p.gap,1);
 
-  document.getElementById('gbTotal').innerHTML=fmt(p.gb_total,0);
+  document.getElementById('gbSuccess').innerHTML=fmt(p.gb_success,0);
   document.getElementById('gbRate').innerHTML=pct(p.gb_rate);
 
   document.getElementById('koCount').innerHTML=p.ko_dispatch===null?'<span class="na">-</span>':fmt(p.ko_dispatch,0)+' / '+fmt(p.ko_convert,0);
@@ -602,6 +611,13 @@ function render(code){
 function showZt(code, key){
   var arr=DATA.people[code].zt[key]||[];
   document.getElementById('modalTitle').textContent=DATA.people[code].name+' · '+(ZT_LABEL[key]||key)+' 异常接入号（'+arr.length+' 条）';
+  var body=document.getElementById('modalBody');
+  body.innerHTML=arr.map(function(x){return '<tr><td>'+esc(x)+'</td></tr>'}).join('')||'<tr><td class="empty">无</td></tr>';
+  document.getElementById('modal').style.display='flex';
+}
+function showAcc(code, key, label){
+  var arr=DATA.people[code][key]||[];
+  document.getElementById('modalTitle').textContent=DATA.people[code].name+' · '+label+'（'+arr.length+' 条）';
   var body=document.getElementById('modalBody');
   body.innerHTML=arr.map(function(x){return '<tr><td>'+esc(x)+'</td></tr>'}).join('')||'<tr><td class="empty">无</td></tr>';
   document.getElementById('modal').style.display='flex';
