@@ -4,7 +4,7 @@
 读取多个外部清单文件，对标30位员工的6大维度指标，输出Web看板
 """
 
-import openpyxl, json, os, math
+import openpyxl, json, os, math, calendar
 from datetime import datetime, date
 from collections import defaultdict
 
@@ -30,6 +30,24 @@ def safe_float(v):
         return None
     try: return float(v)
     except: return None
+
+def _parse_date(v):
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    if isinstance(v, int) and 19000000 <= v <= 21000000:
+        try:
+            return datetime.strptime(str(v), '%Y%m%d').date()
+        except ValueError:
+            return None
+    if isinstance(v, str) and len(v) >= 10:
+        for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.strptime(v[:19] if fmt == '%Y-%m-%d %H:%M:%S' else v[:10], fmt).date()
+            except ValueError:
+                continue
+    return None
 
 def _infer_data_month():
     """Use the latest date in the new-install list instead of the run date."""
@@ -110,6 +128,11 @@ _gb_ok = _list_month(os.path.join(DATA_DIR, "杠保清单.xlsx")) == _benchmark_
 _ko_ok = _list_month(os.path.join(DATA_DIR, "关键一单清单.xlsx")) == _benchmark_month
 _zt_ok = _list_month(os.path.join(DATA_DIR, "质态相关清单.xlsx")) == _benchmark_month
 print(f"  基准月份: {_benchmark_month} 存量={_exist_ok} 杠保={_gb_ok} 关键一单={_ko_ok} 质态={_zt_ok}")
+_bench_y, _bench_m = int(_benchmark_month[:4]), int(_benchmark_month[5:7])
+_last_month_key = f"{_bench_y}-{_bench_m - 1:02d}" if _bench_m > 1 else f"{_bench_y - 1}-12"
+_last_y, _last_m = int(_last_month_key[:4]), int(_last_month_key[5:7])
+_cal_days = calendar.monthrange(_bench_y, _bench_m)[1]
+_last_cal_days = calendar.monthrange(_last_y, _last_m)[1]
 
 def _header_cols(ws, aliases, rows=(1, 2, 3)):
     """Locate Chinese/technical header columns in the first few rows."""
@@ -168,14 +191,15 @@ _current_dates_new = []
 for r in range(3 if _new_has_technical_row else 2, ws2.max_row + 1):
     name = str(ws2.cell(r, col_name2).value or '').strip()
     if not name: continue
-    pv = safe_float(ws2.cell(r, col_value2).value) or 0  # 套餐价值
-    zh = safe_float(ws2.cell(r, col_gaotao2).value) or 0    # 折算后
+    dv = _parse_date(ws2.cell(r, col_date2).value)
+    if dv is not None and dv.strftime('%Y-%m') != _benchmark_month:
+        continue
+    pv = safe_float(ws2.cell(r, col_value2).value) or 0
+    zh = safe_float(ws2.cell(r, col_gaotao2).value) or 0
     new_install[name]['value_score'] += pv
     new_install[name]['gaotao'] += zh
-    # 收集竣工日期
-    dv = ws2.cell(r, col_date2).value
-    if isinstance(dv, (datetime, date)):
-        _current_dates_new.append(dv if isinstance(dv, date) else dv.date())
+    if dv is not None:
+        _current_dates_new.append(dv)
 wb2.close()
 
 # ============================================================
@@ -216,13 +240,15 @@ _current_dates_exist = []
 for r in range(3 if _exist_has_technical_row else 2, ws3.max_row + 1):
     name = str(ws3.cell(r, col_name3).value or '').strip()
     if not name: continue
+    dv = _parse_date(ws3.cell(r, col_date3).value)
+    if dv is not None and dv.strftime('%Y-%m') != _benchmark_month:
+        continue
     tv = safe_float(ws3.cell(r, col_value3).value) or 0
     gt = safe_float(ws3.cell(r, col_gaotao3).value) or 0
     exist_install[name]['value_score'] += tv
     exist_install[name]['gaotao'] += gt
-    dv = ws3.cell(r, col_date3).value
-    if isinstance(dv, (datetime, date)):
-        _current_dates_exist.append(dv if isinstance(dv, date) else dv.date())
+    if dv is not None:
+        _current_dates_exist.append(dv)
 wb3.close()
 if not _exist_ok:
     exist_install.clear()
@@ -238,12 +264,13 @@ _last_dates_new = []
 for r in range(3, ws10.max_row + 1):
     name = str(ws10.cell(r, 11).value or '').strip()
     if not name: continue
+    dv = _parse_date(ws10.cell(r, 8).value)
+    if dv is not None and dv.strftime('%Y-%m') != _last_month_key:
+        continue
     pv = safe_float(ws10.cell(r, 15).value) or 0
     last_new[name] += pv
-    # 收集竣工日期（列8）
-    dv = ws10.cell(r, 8).value
-    if isinstance(dv, (datetime, date)):
-        _last_dates_new.append(dv if isinstance(dv, date) else dv.date())
+    if dv is not None:
+        _last_dates_new.append(dv)
 wb10.close()
 
 last_exist = defaultdict(float)
@@ -263,11 +290,13 @@ _last_dates_exist = []
 for r in range(2, ws11.max_row + 1):
     name = str(ws11.cell(r, col_name11).value or '').strip()
     if not name: continue
+    dv = _parse_date(ws11.cell(r, col_date11).value)
+    if dv is not None and dv.strftime('%Y-%m') != _last_month_key:
+        continue
     tv = safe_float(ws11.cell(r, col_value11).value) or 0
     last_exist[name] += tv
-    dv = ws11.cell(r, col_date11).value
-    if isinstance(dv, (datetime, date)):
-        _last_dates_exist.append(dv if isinstance(dv, date) else dv.date())
+    if dv is not None:
+        _last_dates_exist.append(dv)
 wb11.close()
 
 # ============================================================
@@ -420,11 +449,11 @@ for p in personnel:
     _all_cur = _current_dates_new + _current_dates_exist
     _cur_min = min(_all_cur) if _all_cur else None
     _cur_max = max(_all_cur) if _all_cur else None
-    _cur_days = (_cur_max - _cur_min).days + 1 if _cur_min else 1
+    _cur_days = (_cur_max - _cur_min).days + 1 if _cur_min else _cal_days
     _all_last = _last_dates_new + _last_dates_exist
     _last_min = min(_all_last) if _all_last else None
     _last_max = max(_all_last) if _all_last else None
-    _last_days = 30
+    _last_days = (_last_max - _last_min).days + 1 if _last_min else _last_cal_days
     if p['last_total'] and p['last_total'] != 0:
         # 日均环比 = (本月日均 - 上月日均) / |上月日均|
         _cur_daily = p['total_score'] / _cur_days
