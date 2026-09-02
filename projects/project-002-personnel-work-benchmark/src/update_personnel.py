@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import re
 import openpyxl
 from datetime import datetime
 
@@ -55,6 +56,21 @@ def read_sheet(ws):
     return people
 
 
+def read_target_month(wb):
+    ws = wb["填写说明"]
+    for row in ws.iter_rows(values_only=True):
+        if not row or "目标月份" not in str(row[0] or ""):
+            continue
+        raw = str(row[1] or "") if len(row) > 1 else ""
+        m = re.search(r"20\d{2}-\d{1,2}", raw) if raw else None
+        if not m:
+            m = re.search(r"20\d{2}-\d{1,2}", str(row[0] or ""))
+        if m:
+            year, month = m.group(0).split("-")
+            return f"{year}-{int(month):02d}"
+    return datetime.now().strftime("%Y-%m")
+
+
 def main():
     if len(sys.argv) < 2:
         print("用法: python3 src/update_personnel.py <模板Excel路径>")
@@ -63,16 +79,30 @@ def main():
     wb = openpyxl.load_workbook(fp, data_only=True)
     satai = read_sheet(wb["沙太人员"])
     tangxia = read_sheet(wb["棠下人员"])
+    target_month = read_target_month(wb)
     today = datetime.now().strftime("%Y-%m-%d")
+    archive_dir = os.path.join(PROJ_DIR, "data", "targets")
+    os.makedirs(archive_dir, exist_ok=True)
     for fn, people in [("personnel.json", satai), ("tangxia_personnel.json", tangxia)]:
         path = os.path.join(PROJ_DIR, "data", fn)
         with open(path, encoding="utf-8") as f:
             old = json.load(f)
         old["data_date"] = old.get("data_date") or today
+        old["target_month"] = target_month
         old["personnel"] = people
         with open(path, "w", encoding="utf-8") as f:
             json.dump(old, f, ensure_ascii=False, indent=2)
-    print(f"✅ 已更新 personnel.json（沙太 {len(satai)} 人）和 tangxia_personnel.json（棠下 {len(tangxia)} 人）")
+        archive = {
+            "target_month": target_month,
+            "data_date": today,
+            "personnel": people,
+        }
+        archive_path = os.path.join(archive_dir, f"{os.path.splitext(fn)[0]}_{target_month}.json")
+        with open(archive_path, "w", encoding="utf-8") as f:
+            json.dump(archive, f, ensure_ascii=False, indent=2)
+        print(f"✅ {fn}: {len(people)} 人，目标月份 {target_month}")
+        print(f"   归档: {archive_path}")
+    print("✅ 当前生效名单与目标已更新")
     return 0
 
 

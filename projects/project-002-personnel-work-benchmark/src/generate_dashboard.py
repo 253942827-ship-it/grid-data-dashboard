@@ -21,6 +21,7 @@ _pf = os.path.join(DATA_DIR, "personnel.json")
 with open(_pf, 'r', encoding='utf-8') as _f:
     _pd = json.load(_f)
 personnel = _pd['personnel']
+target_month = str(_pd.get('target_month', '') or '')
 
 def safe_float(v):
     if v is None: return None
@@ -467,6 +468,7 @@ _dates['gb'] = _scan(os.path.join(DATA_DIR, '杠保清单.xlsx'), 4, 3)
 _dates['zt'] = _scan(os.path.join(DATA_DIR, '质态相关清单.xlsx'), 2, 3, sheet_kw='融合质态T+0')
 _dates['ko'] = _scan(os.path.join(DATA_DIR, '关键一单清单.xlsx'), 2, 2)
 _date_status = f"新装~{_dates['new_install']} 存量~{_dates['exist_install']} 杠保~{_dates['gb']} 质态{_dates['zt']} 关键一单~{_dates['ko']}"
+_date_status += f" 目标月份~{target_month or '未设置'}"
 if _shangke_meta:
     _date_status += f" 商客战报~{_shangke_meta.get('report_date', '-')} 数据更新~{_shangke_meta.get('updated_at', '-')}"
 else:
@@ -830,7 +832,7 @@ html += f'''<div class="main-panel" id="panel-m">
 <div class="panel" style="margin-top:10px;">
 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:2px solid #c5cae9;margin-bottom:10px;">
 <span style="font-size:14px;font-weight:700;color:#1a237e;">📋 底层数据</span>
-<span style="font-size:11px;color:#888;">只读展示人员/编码/岗位/CP/目标，更新请使用月度模板</span>
+<span style="font-size:11px;color:#888;">目标月份 {target_month or '-'} · 只读展示人员/编码/岗位/CP/目标，更新请使用月度模板</span>
 </div>
 <div class="tbl-wrap"><table style="min-width:auto;font-size:12px;">
 <thead><tr><th>#</th><th class="tl">姓名</th><th>揽装编码</th><th>岗位</th><th>CP</th><th>价值积分目标</th><th>增存高套目标</th><th>达量目标</th><th>商客战报</th></tr></thead>
