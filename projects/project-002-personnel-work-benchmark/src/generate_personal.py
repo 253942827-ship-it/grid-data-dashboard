@@ -43,6 +43,47 @@ def _parse_date(v):
     return None
 
 
+def _dedupe_rows(rows):
+    """按 (接入号, 折算量, 客户) 去重明细记录，保持原顺序。"""
+    seen = set()
+    out = []
+    for x in rows:
+        key = (x.get("acc", ""), x.get("gaotao"), x.get("cust", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(x)
+    return out
+
+
+def _last_date_str(fp, headers=("竣工日期", "统计日期", "录入时间"), skip=2):
+    """返回清单最新日期 mm/dd，与主看板顶部一致。"""
+    if not os.path.exists(fp):
+        return "-"
+    try:
+        wb = openpyxl.load_workbook(fp, data_only=True, read_only=True)
+    except Exception:
+        return "-"
+    best = None
+    for ws in wb.worksheets[:3]:
+        col = None
+        for r in range(1, 4):
+            for c in range(1, min(ws.max_column, 60) + 1):
+                if str(ws.cell(r, c).value or "").strip() in headers:
+                    col = c
+                    break
+            if col:
+                break
+        if not col:
+            continue
+        for row in ws.iter_rows(min_row=skip, max_row=30, min_col=col, max_col=col, values_only=True):
+            d = _parse_date(row[0])
+            if d and (not best or d > best):
+                best = d
+    wb.close()
+    return best.strftime("%m/%d") if best else "-"
+
+
 def _list_month(fp):
     """返回清单文件报表日期列的最新月份（YYYY-MM），无日期或文件缺失返回 None。"""
     if not os.path.exists(fp):
@@ -142,8 +183,8 @@ def main():
     fp = os.path.join(DATA_DIR, "新装高套竣工清单.xlsx")
     wb = openpyxl.load_workbook(fp, data_only=True)
     ws = wb.active
-    cols = _header_cols(ws, {"揽装人": "name", "套餐价值": "value", "折算后": "gaotao", "竣工日期": "date", "接入号": "acc"})
-    cn, cv, cg, cd, ca = cols.get("name", 11), cols.get("value", 15), cols.get("gaotao", 26), cols.get("date", 8), cols.get("acc", 4)
+    cols = _header_cols(ws, {"揽装人": "name", "套餐价值": "value", "折算后": "gaotao", "竣工日期": "date", "接入号": "acc", "客户名称（脱敏）": "cust"})
+    cn, cv, cg, cd, ca, cc = cols.get("name", 11), cols.get("value", 15), cols.get("gaotao", 26), cols.get("date", 8), cols.get("acc", 4), cols.get("cust", 16)
     tech = any(str(ws.cell(2, c).value or "").strip() == "sales_name" for c in range(1, ws.max_column + 1))
     for r in range(3 if tech else 2, ws.max_row + 1):
         name = str(ws.cell(r, cn).value or "").strip()
@@ -152,11 +193,13 @@ def main():
         d = _parse_date(ws.cell(r, cd).value)
         if d is not None and d.strftime("%Y-%m") != benchmark:
             continue
-        new_install[name]["score"] += safe_float(ws.cell(r, cv).value) or 0
-        new_install[name]["gaotao"] += safe_float(ws.cell(r, cg).value) or 0
+        pv = safe_float(ws.cell(r, cv).value) or 0
+        zh = safe_float(ws.cell(r, cg).value) or 0
+        new_install[name]["score"] += pv
+        new_install[name]["gaotao"] += zh
         acc = str(ws.cell(r, ca).value or "").strip()
         if acc:
-            new_accs[name].append(acc)
+            new_accs[name].append({"acc": acc, "gaotao": round(zh, 2), "cust": str(ws.cell(r, cc).value or "").strip()})
         if d:
             cur_dates.append(d)
     wb.close()
@@ -168,9 +211,9 @@ def main():
         cols = _header_cols(ws, {
             "揽装人": "name", "提值幅度": "value", "高套折算量": "gaotao", "竣工日期": "date",
             "sj_salestaff_name": "name", "jzbh_value": "value", "gt_zsl": "gaotao", "sj_subs_stat_date": "date",
-            "接入号": "acc",
+            "接入号": "acc", "客户名称": "cust",
         })
-        cn, cv, cg, cd, ca = cols.get("name", 10), cols.get("value", 16), cols.get("gaotao", 27), cols.get("date", 11), cols.get("acc", 6)
+        cn, cv, cg, cd, ca, cc = cols.get("name", 10), cols.get("value", 16), cols.get("gaotao", 27), cols.get("date", 11), cols.get("acc", 6), cols.get("cust", 8)
         tech = any(str(ws.cell(2, c).value or "").strip() == "sj_salestaff_name" for c in range(1, ws.max_column + 1))
         for r in range(3 if tech else 2, ws.max_row + 1):
             name = str(ws.cell(r, cn).value or "").strip()
@@ -179,11 +222,13 @@ def main():
             d = _parse_date(ws.cell(r, cd).value)
             if d is not None and d.strftime("%Y-%m") != benchmark:
                 continue
-            exist_install[name]["score"] += safe_float(ws.cell(r, cv).value) or 0
-            exist_install[name]["gaotao"] += safe_float(ws.cell(r, cg).value) or 0
+            tv = safe_float(ws.cell(r, cv).value) or 0
+            gt = safe_float(ws.cell(r, cg).value) or 0
+            exist_install[name]["score"] += tv
+            exist_install[name]["gaotao"] += gt
             acc = str(ws.cell(r, ca).value or "").strip()
             if acc:
-                exist_accs[name].append(acc)
+                exist_accs[name].append({"acc": acc, "gaotao": round(gt, 2), "cust": str(ws.cell(r, cc).value or "").strip()})
             if d:
                 cur_dates.append(d)
         wb.close()
@@ -225,6 +270,7 @@ def main():
 
     # ---- 杠保 ----
     gb = defaultdict(lambda: {"total": 0, "success": 0})
+    gb_accs = defaultdict(list)
     if gb_ok:
         fp = os.path.join(DATA_DIR, "杠保清单.xlsx")
         wb = openpyxl.load_workbook(fp, data_only=True)
@@ -240,6 +286,9 @@ def main():
             gb[name]["total"] += 1
             if is_gb == 1:
                 gb[name]["success"] += 1
+                acc = str(ws.cell(r, 10).value or "").strip() or str(ws.cell(r, 11).value or "").strip()
+                if acc:
+                    gb_accs[name].append({"acc": acc, "cust": str(ws.cell(r, 16).value or "").strip()})
         wb.close()
 
     # ---- 关键一单 ----
@@ -274,7 +323,7 @@ def main():
         fp = os.path.join(DATA_DIR, "质态相关清单.xlsx")
         wb = openpyxl.load_workbook(fp, data_only=True)
         for sheet in wb.sheetnames:
-            if sheet.startswith("融合质态T+0"):
+            if sheet.startswith("融合质态T+0") or sheet.startswith("融合质态T+1"):
                 ws = wb[sheet]
                 for r in range(3, ws.max_row + 1):
                     name = str(ws.cell(r, 10).value or "").strip()
@@ -282,16 +331,19 @@ def main():
                         continue
                     month = str(ws.cell(r, 3).value or "").strip()
                     acc = str(ws.cell(r, 4).value or "").strip()
+                    if not acc:
+                        continue
+                    cust = str(ws.cell(r, 15).value or "").strip()
                     if month == t0_key:
                         if (safe_float(ws.cell(r, 5).value) or 0) == 0:
-                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_invalid"].append(acc)
+                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_invalid"].append({"acc": acc, "cust": cust})
                         if (safe_float(ws.cell(r, 7).value) or 0) == 0:
-                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_notrust"].append(acc)
+                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_notrust"].append({"acc": acc, "cust": cust})
                     elif month == t1_key:
                         if (safe_float(ws.cell(r, 5).value) or 0) == 0:
-                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t1_invalid"].append(acc)
+                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t1_invalid"].append({"acc": acc, "cust": cust})
                         if (safe_float(ws.cell(r, 7).value) or 0) == 0:
-                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t1_notrust"].append(acc)
+                            zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t1_notrust"].append({"acc": acc, "cust": cust})
             elif "未满卡" in sheet:
                 ws = wb[sheet]
                 for r in range(3, ws.max_row + 1):
@@ -300,11 +352,15 @@ def main():
                         continue
                     if str(ws.cell(r, 4).value or "").strip() in ("是", "1"):
                         continue
-                    zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_notfull"].append(str(ws.cell(r, 3).value or "").strip())
+                    acc = str(ws.cell(r, 3).value or "").strip()
+                    if not acc:
+                        continue
+                    cust = str(ws.cell(r, 13).value or "").strip()
+                    zt.setdefault(name, {"t0_invalid": [], "t0_notrust": [], "t1_invalid": [], "t1_notrust": [], "t0_notfull": []})["t0_notfull"].append({"acc": acc, "cust": cust})
         wb.close()
         for v in zt.values():
             for k in v:
-                v[k] = list(dict.fromkeys(x for x in v[k] if x))
+                v[k] = _dedupe_rows(v[k])
 
     # ---- 商客发展 ----
     sk = {}
@@ -316,6 +372,21 @@ def main():
             sk = sk_meta.get("people", {})
         except Exception:
             sk = {}
+
+    def _ds(fp, ok):
+        return _last_date_str(fp) if ok else "-"
+    date_status = (
+        f"新装~{_last_date_str(os.path.join(DATA_DIR, '新装高套竣工清单.xlsx'))} "
+        f"存量~{_ds(os.path.join(DATA_DIR, '存量高套竣工清单.xlsx'), exist_ok)} "
+        f"杠保~{_ds(os.path.join(DATA_DIR, '杠保清单.xlsx'), gb_ok)} "
+        f"质态{_ds(os.path.join(DATA_DIR, '质态相关清单.xlsx'), zt_ok)} "
+        f"关键一单~{_ds(os.path.join(DATA_DIR, '关键一单清单.xlsx'), ko_ok)} "
+        f"目标月份~{target_month or '未设置'}"
+    )
+    if sk_meta:
+        date_status += f" 商客战报~{sk_meta.get('report_date', '-')} 数据更新~{sk_meta.get('updated_at', '-')}"
+    else:
+        date_status += " 商客战报~暂无"
 
     # ---- 组装个人数据 ----
     people = {}
@@ -365,8 +436,9 @@ def main():
             "new_gaotao": new_gaotao,
             "exist_gaotao": exist_gaotao,
             "total_gaotao": total_gaotao,
-            "new_accs": list(dict.fromkeys(new_accs.get(name, []))),
-            "exist_accs": list(dict.fromkeys(exist_accs.get(name, []))),
+            "new_accs": _dedupe_rows(new_accs.get(name, [])),
+            "exist_accs": _dedupe_rows(exist_accs.get(name, [])),
+            "gb_accs": _dedupe_rows(gb_accs.get(name, [])),
             "gaotao_rate": gaotao_rate,
             "gap": gap,
             "gb_total": g.get("total", 0) if gb_ok else None,
@@ -390,6 +462,7 @@ def main():
         "benchmark": benchmark,
         "target_month": target_month,
         "updated_at": updated_at,
+        "date_status": date_status,
         "avg_ko_rate": avg_ko_rate,
         "order": order,
         "people": people,
@@ -461,6 +534,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
   <div class="topbar">
     <h1>👤 沙太人员个人视图</h1>
     <div class="sub">数据月份 <span id="benchmark"></span> · 目标月份 <span id="targetMonth"></span> · 更新时间 <span id="updatedAt"></span></div>
+    <div class="sub" id="dateStatus" style="margin-top:5px;opacity:.85"></div>
     <div class="search-wrap">
       <input id="search" placeholder="输入姓名搜索" autocomplete="off">
       <div class="dropdown" id="dropdown"></div>
@@ -505,7 +579,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
     <div class="card">
       <div class="sec-title">③ 杠保</div>
       <div class="grid2">
-        <div class="stat"><div class="lab">杠保成功量</div><div class="val" id="gbSuccess"></div></div>
+        <div class="stat"><div class="lab">杠保成功量（点击查看接入号）</div><div class="val" id="gbSuccess"></div></div>
         <div class="stat"><div class="lab">成功率</div><div class="val" id="gbRate"></div></div>
       </div>
     </div>
@@ -538,7 +612,7 @@ body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;backgr
 <div class="modal-mask" id="modal">
   <div class="modal">
     <div class="modal-head"><b id="modalTitle"></b><button class="modal-close" onclick="closeModal()">关闭</button></div>
-    <div class="modal-body"><table><thead><tr><th>接入号</th></tr></thead><tbody id="modalBody"></tbody></table></div>
+    <div class="modal-body"><table><thead><tr><th>接入号</th><th>折算量</th><th>客户姓名</th></tr></thead><tbody id="modalBody"></tbody></table></div>
   </div>
 </div>
 
@@ -587,7 +661,8 @@ function render(code){
   document.getElementById('gTotal').innerHTML=fmt(p.total_gaotao,1)+' / '+fmt(p.target_total,1);
   document.getElementById('gGap').innerHTML=p.gap===null?'<span class="na">-</span>':fmt(p.gap,1);
 
-  document.getElementById('gbSuccess').innerHTML=fmt(p.gb_success,0);
+  var gbArr=p.gb_accs||[];
+  document.getElementById('gbSuccess').innerHTML=(p.gb_success>0&&gbArr.length)?'<span class="click" onclick="showGb(\''+code+'\')">'+fmt(p.gb_success,0)+'</span>':fmt(p.gb_success,0);
   document.getElementById('gbRate').innerHTML=pct(p.gb_rate);
 
   document.getElementById('koCount').innerHTML=p.ko_dispatch===null?'<span class="na">-</span>':fmt(p.ko_dispatch,0)+' / '+fmt(p.ko_convert,0);
@@ -608,19 +683,26 @@ function render(code){
   document.getElementById('skDev299').innerHTML=fmt(p.sk_dev299,0);
 }
 
+function openRows(title, rows){
+  document.getElementById('modalTitle').textContent=title;
+  var body=document.getElementById('modalBody');
+  body.innerHTML=rows.map(function(x){
+    var g=(x.gaotao===undefined||x.gaotao===null)?'<span class="na">-</span>':Number(x.gaotao).toFixed(2);
+    return '<tr><td>'+esc(x.acc||'')+'</td><td>'+g+'</td><td>'+esc(x.cust||'')+'</td></tr>';
+  }).join('')||'<tr><td colspan="3" class="empty">无</td></tr>';
+  document.getElementById('modal').style.display='flex';
+}
 function showZt(code, key){
   var arr=DATA.people[code].zt[key]||[];
-  document.getElementById('modalTitle').textContent=DATA.people[code].name+' · '+(ZT_LABEL[key]||key)+' 异常接入号（'+arr.length+' 条）';
-  var body=document.getElementById('modalBody');
-  body.innerHTML=arr.map(function(x){return '<tr><td>'+esc(x)+'</td></tr>'}).join('')||'<tr><td class="empty">无</td></tr>';
-  document.getElementById('modal').style.display='flex';
+  openRows(DATA.people[code].name+' · '+(ZT_LABEL[key]||key)+' 异常接入号（'+arr.length+' 条）', arr);
 }
 function showAcc(code, key, label){
   var arr=DATA.people[code][key]||[];
-  document.getElementById('modalTitle').textContent=DATA.people[code].name+' · '+label+'（'+arr.length+' 条）';
-  var body=document.getElementById('modalBody');
-  body.innerHTML=arr.map(function(x){return '<tr><td>'+esc(x)+'</td></tr>'}).join('')||'<tr><td class="empty">无</td></tr>';
-  document.getElementById('modal').style.display='flex';
+  openRows(DATA.people[code].name+' · '+label+'（'+arr.length+' 条）', arr);
+}
+function showGb(code){
+  var arr=DATA.people[code].gb_accs||[];
+  openRows(DATA.people[code].name+' · 杠保成功接入号（'+arr.length+' 条）', arr);
 }
 function closeModal(){document.getElementById('modal').style.display='none'}
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal()});
@@ -654,6 +736,7 @@ document.addEventListener('click',function(e){if(!search.contains(e.target)&&!dd
 document.getElementById('benchmark').textContent=DATA.benchmark;
 document.getElementById('targetMonth').textContent=DATA.target_month||'-';
 document.getElementById('updatedAt').textContent=DATA.updated_at;
+document.getElementById('dateStatus').textContent='📡 '+DATA.date_status;
 var urlName=new URLSearchParams(location.search).get('name');
 var hit=urlName?DATA.order.map(function(c){return DATA.people[c]}).find(function(p){return p.name===urlName}):null;
 if(hit){search.value=hit.name;render(hit.code)}
