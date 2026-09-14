@@ -25,6 +25,45 @@ def match_target(orig):
         if kw in name: return t
     return None
 
+def attach_date_token(fn):
+    """从附件名解析日期：返回 (kind, 'YYYY-MM-DD' 或 'YYYY-MM')。"""
+    m = re.search(r'[（(](\d{4}|\d{6}|\d{8})[）)]', fn)
+    if not m:
+        m = re.match(r'^(\d{4}|\d{6}|\d{8})', fn)
+    if not m:
+        m = re.search(r'_(\d{6}|\d{8})(?:\.|$)', fn)
+    if not m:
+        return None
+    t = m.group(1)
+    if len(t) == 8:
+        try:
+            return ('day', dt.strptime(t, '%Y%m%d').strftime('%Y-%m-%d'))
+        except ValueError:
+            return None
+    if len(t) == 6:
+        try:
+            return ('month', dt.strptime(t, '%Y%m').strftime('%Y-%m'))
+        except ValueError:
+            return None
+    mm, dd = int(t[:2]), int(t[2:])
+    if 1 <= mm <= 12 and 1 <= dd <= 31:
+        return ('day', f"{dt.now().year}-{mm:02d}-{dd:02d}")
+    return None
+
+def classify_attachment(fn):
+    """区分当月清单与上月整月文件，返回 (目标文件名, 日期信息)。"""
+    base = match_target(fn)
+    if not base:
+        return None, None
+    info = attach_date_token(fn)
+    if info and info[0] == 'month':
+        if base == '新装高套竣工清单.xlsx':
+            return '上月新装高套清单.xlsx', info
+        if base == '存量高套竣工清单.xlsx':
+            return '上月存量高套清单.xlsx', info
+        return None, info
+    return base, info
+
 def get_data_month(fp):
     """读取文件的最新数据月份"""
     try:
@@ -176,27 +215,44 @@ def main():
         status, mids = conn.search(None, 'ALL')
         if status != 'OK': print("❌ 搜索失败"); return 1
         all_ids = mids[0].split()
-        downloaded = set()
-        for mid in reversed(all_ids):
-            if len(downloaded) >= 6: break
+        # 按数据日期选最新版本：区分当月日报（0907）与上月整月文件（202608）
+        candidates = {}
+        for idx, mid in enumerate(reversed(all_ids[-120:])):
             status, data = conn.fetch(mid, '(RFC822)')
-            if status != 'OK': continue
+            if status != 'OK':
+                continue
             msg = email.message_from_bytes(data[0][1])
-            subj = ds(msg['Subject'])
-            if not any(kw in subj for kw in ['清单','高套','竣工']): continue
-            if not msg.is_multipart(): continue
+            if not msg.is_multipart():
+                continue
             for part in msg.walk():
-                if part.get_content_maintype() == 'multipart': continue
+                if part.get_content_maintype() == 'multipart':
+                    continue
                 fn = ds(part.get_filename())
-                if not fn: continue
-                target = match_target(fn)
-                if target and target not in downloaded:
+                if not fn:
+                    continue
+                target, info = classify_attachment(fn)
+                if not target:
+                    continue
+                date_str = info[1] if info else ''
+                rank = (date_str, -idx)
+                if target not in candidates or rank > candidates[target][0]:
                     payload = part.get_payload(decode=True)
                     if payload:
-                        with open(os.path.join(DATA_DIR, target), 'wb') as f:
-                            f.write(payload)
-                        downloaded.add(target)
-                        print(f'  ✅ {target} ({len(payload)/1024:.0f}KB)')
+                        candidates[target] = (rank, fn, payload)
+            if len(candidates) >= 8:
+                break
+        for target, (rank, fn, payload) in candidates.items():
+            fp = os.path.join(DATA_DIR, target)
+            if target.startswith('上月') and os.path.exists(fp):
+                old_month = get_file_month(fp)
+                if old_month:
+                    archive = os.path.join(DATA_DIR, target.replace('.xlsx', f"_{old_month.replace('-', '')}.xlsx"))
+                    if not os.path.exists(archive):
+                        shutil.copy2(fp, archive)
+                        print(f"  📦 归档旧上月文件: {os.path.basename(archive)}")
+            with open(fp, 'wb') as f:
+                f.write(payload)
+            print(f'  ✅ {target} <- {fn} ({len(payload)/1024:.0f}KB)')
         conn.logout()
     except Exception as e:
         print(f"❌ 邮箱下载失败: {e}")
